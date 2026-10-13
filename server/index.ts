@@ -1,3 +1,4 @@
+import {normalizeUrlInput} from '../shared/url-input.ts';
 import { createInspectionFacade } from './inspection/index.ts';
 import { createAiAnalyzer } from './inspection/provider.ts';
 import express from 'express';
@@ -46,7 +47,7 @@ app.post('/api/cases',upload.array('files',5),async(req,res)=>{
   if(queue.pending.length>=20) return void res.status(429).json({error:'QUEUE_FULL'});
   const input=intake.parse(req.body);const files=(req.files||[]) as Express.Multer.File[];
   if(!templates.has(input.templateId))throw new Error('NOT_FOUND');
-  if(input.sourceType==='url') parsePublicUrl(input.sourceUrl||'');
+  if(input.sourceType==='url'){input.sourceUrl=normalizeUrlInput(input.sourceUrl||'');parsePublicUrl(input.sourceUrl);}
   if(input.sourceType==='text'&&!input.text?.trim()) throw new Error('EMPTY_INPUT');
   if(input.sourceType==='file'&&!files.length) throw new Error('EMPTY_INPUT');
   const c=newCase(store,{title:input.title,sourceType:input.sourceType,sourceUrl:input.sourceType==='url'?input.sourceUrl:undefined,useAi:(input.analysisLevel ? input.analysisLevel!=='basic' : input.useAi==='true'),analysisLevel:input.analysisLevel,templateId:input.templateId});

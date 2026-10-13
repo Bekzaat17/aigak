@@ -20,7 +20,7 @@ function mergeFindings(existing:Finding[],incoming:Finding[],agentId:string):Fin
 /** Facade owns execution, resource limits and validation; it knows no concrete check classes. */
 export class InspectionFacade {
   constructor(private readonly registry:CheckRegistry,private readonly strategies:StrategyFactory,private readonly ai:AiAnalyzer){}
-  async inspect(input:InspectionInput,onStage:ProgressObserver=()=>{}):Promise<InspectionResult>{
+  async inspect(input:InspectionInput,onStage:ProgressObserver=()=>{},onStart:(stage:{id:string;name:Localized})=>void=()=>{}):Promise<InspectionResult>{
     const strategy=this.strategies.create(input.analysisLevel);
     // Resolve all configuration up front: unknown plugins are deployment errors, not partial success.
     const checks=strategy.checks.map(id=>this.registry.create(id));
@@ -31,6 +31,7 @@ export class InspectionFacade {
     const hasText=input.evidence.some(e=>e.text?.trim());
     try {
       for(const check of checks){
+        onStart({id:check.id,name:check.name});
         const aiAttempts:AiAttempt[]=[];
         const start=Date.now();let result:CheckResult|undefined;let errorCode:string|undefined;
         try {

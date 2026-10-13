@@ -1,3 +1,4 @@
+import {displayObservations} from './osint-presentation.ts';
 import type {Localized} from './types.ts';
 export interface OsintObservation {
   id:string; kind:string; value:string; evidenceId:string; sourceUrl?:string;
@@ -24,6 +25,9 @@ export interface OsintReport {
   registrationDomain?:string; siteDomain?:string;
 }
 export const osintLabels:Record<string,Localized>={
+ dns_A:{ru:'IP-адреса IPv4',kk:'IPv4 мекенжайлары'},dns_AAAA:{ru:'IP-адреса IPv6',kk:'IPv6 мекенжайлары'},
+ dns_NS:{ru:'DNS-серверы',kk:'DNS серверлері'},dns_MX:{ru:'Почтовые серверы',kk:'Пошта серверлері'},
+ dns_CNAME:{ru:'Псевдонимы домена',kk:'Домен бүркеншік аттары'},dns_TXT:{ru:'Текстовые записи DNS',kk:'DNS мәтіндік жазбалары'},
  registry_match:{ru:'Совпадение в снимке реестра',kk:'Тізілім көшірмесіндегі сәйкестік'},
  email:{ru:'Опубликованный email',kk:'Жарияланған email'},
  phone:{ru:'Опубликованный телефон',kk:'Жарияланған телефон'},
@@ -54,6 +58,6 @@ export function osintSummary(report:OsintReport,lang:'ru'|'kk'){
   ...(report.legalNorms||[]).map(n=>n.id+': '+n.quote+' ['+n.evidenceId+'] '+n.sourceUrl),
   ...(report.relations||[]).map(r=>r.from+' → '+r.to+' ('+r.kind+') ['+r.evidenceIds.join(', ')+']'),
   ...(report.candidates||[]).map(c=>c.hostname+': '+c.status),
-  ...report.observations.map(o=>(osintLabels[o.kind]?.[lang]||o.kind)+': '+o.value+' ['+o.evidenceId+']'+(o.sourceUrl?' '+o.sourceUrl:'')),
+  ...displayObservations(report.observations,lang).map(o=>(osintLabels[o.kind]?.[lang]||o.kind)+': '+o.lines.join('; ')+' ['+o.sources.map(s=>s.evidenceId).join(', ')+']'),
  ].join('\n');
 }

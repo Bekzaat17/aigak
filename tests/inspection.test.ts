@@ -48,3 +48,11 @@ test('custom registry and strategy enforce deadline for a provider ignoring canc
 test('legacy saved cases hydrate their level without changing old audit records',()=>{
  for(const useAi of [true,false]){const audit=[{hash:'unchanged'}];const c=hydrateCase(JSON.stringify({useAi,audit}));assert.equal(c.analysisLevel,useAi?'advanced':'basic');assert.deepEqual(c.audit,audit);}
 });
+
+test('live progress announces a check before its AI request and completion after it',async()=>{
+ const events:string[]=[];
+ const inspector=createInspectionFacade({available:true,async analyze(_,options){events.push('request:'+options.task);return {findings:[],assessment,likelihood:1};}});
+ await inspector.inspect({...input,analysisLevel:'advanced'},stage=>events.push('end:'+stage.id),stage=>events.push('start:'+stage.id));
+ assert.ok(events.indexOf('start:context')<events.indexOf('request:context'));
+ assert.ok(events.indexOf('request:context')<events.indexOf('end:context'));
+});

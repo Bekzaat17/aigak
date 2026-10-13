@@ -55,16 +55,19 @@ export class Queue {
       c.osint.stages.unshift(pageStage);
       if(pageStage.status==='partial')c.osint.status='partial';
       if(c.analysisLevel==='pro'){
+        c.step={ru:'Сверяем реестр и сохраняем нормы закона',kk:'Тізілімді салыстырып, заң нормаларын сақтаймыз'};this.store.event(c,'official.started');
         await this.official.enrich(c.osint,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
         c.step={ru:'Проверка технических связей',kk:'Техникалық байланыстарды тексеру'};
+        this.store.event(c,'detective.started');
         const sources=c.evidence.map(e=>e.mime==='text/html'&&!e.method.startsWith('official-')?{...e,text:this.store.read(c,e).toString()}:e);
         await this.detective.investigate(c.osint,sources,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
       }
       this.store.event(c,'osint.completed',c.osint.status);
       c.status='analyzing';c.step={ru:'Поиск признаков и проверка цитат',kk:'Белгілерді іздеу және дәйексөздерді тексеру'};this.store.event(c,'analysis.started');
       const result=await this.inspector.inspect(c,stage=>{
-        c.step=stage.name;
         this.store.event(c,'inspection.stage',`${stage.id}@${stage.version}: ${stage.status}`);
+      },stage=>{
+        c.step=stage.name;this.store.event(c,'inspection.started',stage.id);
       });
       c.findings=result.findings;c.assessment=result.assessment;c.likelihood=result.likelihood;
       c.engine=result.engine;c.inspection=result.run;c.issues.push(...result.issues);
