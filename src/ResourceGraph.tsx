@@ -1,15 +1,2 @@
-import {useState} from 'react';
-import type {CaseRecord,Lang} from '../shared/types';
-import type {ResourceRelation} from '../shared/osint';
-export const relationName=(kind:ResourceRelation['kind'],lang:Lang)=>({links_to:['Ссылка на ресурс','Ресурсқа сілтеме'],resolves_to:['IP-адрес','IP мекенжайы'],certificate_contains:['Общий сертификат','Ортақ сертификат'],ct_contains:['История сертификатов','Сертификаттар тарихы'],shared_contact:['Совпадает email','Email сәйкес'],shared_business_id:['Совпадает заявленный БИН','Көрсетілген БСН сәйкес'],similar_content:['Похожий текст','Ұқсас мәтін']}[kind][lang==='ru'?0:1]);
-export function ResourceGraph({c,lang,onChange}:{c:CaseRecord;lang:Lang;onChange?:(c:CaseRecord)=>void}){
- const [selected,setSelected]=useState('');const relations=c.osint?.relations||[];
- const r=relations.find(r=>r.id===selected)||relations[0];const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;
- if(!r)return null;
- return <section className="resource-map"><h3>{t('Карта связей','Байланыстар картасы')}</h3><div className="graph-origin">{c.osint?.hostname}</div><div className="graph-branches">{relations.map(edge=><button key={edge.id} className={edge.id===r.id?'selected':''} onClick={()=>setSelected(edge.id)} aria-pressed={edge.id===r.id}><small>{relationName(edge.kind,lang)}</small><strong>{edge.to}</strong></button>)}</div><RelationReview key={r.id} c={c} r={r} lang={lang} onChange={onChange}/></section>;
-}
-function RelationReview({c,r,lang,onChange}:{c:CaseRecord;r:ResourceRelation;lang:Lang;onChange?:(c:CaseRecord)=>void}){
- const [note,setNote]=useState(r.note||'');const [busy,setBusy]=useState(false);const [error,setError]=useState(false);const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;
- const save=async(decision:string)=>{setBusy(true);setError(false);try{const res=await fetch(`/api/cases/${c.id}/relations/${r.id}`,{method:'PATCH',headers:{'Content-Type':'application/json','X-Aigak-Client':'local'},body:JSON.stringify({decision,note})});if(!res.ok)throw Error();onChange?.(await res.json());}catch{setError(true);}finally{setBusy(false);}};
- return <div className="relation-review"><h4>{relationName(r.kind,lang)}: {r.from} → {r.to}</h4>{r.description&&<p>{r.description}</p>}<p>{t('Подтверждайте только указанное наблюдение. Совпадение не устанавливает владельца или статус зеркала.','Тек көрсетілген бақылауды растаңыз. Сәйкестік иені не айна мәртебесін анықтамайды.')}</p>{r.evidenceIds.map((id,i)=><a className="text-button" key={id} href={`/api/cases/${c.id}/evidence/${id}`} download>{t('Источник','Дереккөз')} {i+1}</a>)}<textarea aria-label={t('Пояснение к связи','Байланысқа түсіндірме')} value={note} onChange={e=>setNote(e.target.value)} maxLength={2000}/><div className="decision-options">{(['accepted','rejected','pending'] as const).map((d,i)=><button key={d} disabled={busy||!onChange} className={r.decision===d?'chosen':''} onClick={()=>void save(d)}>{[t('Подтвердить наблюдение','Бақылауды растау'),t('Отклонить','Қабылдамау'),t('Нужно уточнить','Нақтылау қажет')][i]}</button>)}</div>{error&&<p role="alert">{t('Не удалось сохранить решение.','Шешім сақталмады.')}</p>}</div>;
-}
+export { relationName } from './features/resource-graph/presentation.ts';
+export { ResourceGraph } from './features/resource-graph/ResourceGraph.tsx';

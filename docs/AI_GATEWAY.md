@@ -98,5 +98,6 @@ fallback, отмену, протоколы адаптеров и лимиты н
 Этот маленький набор — smoke test, не измерение точности на реальных делах.
 
 Источники контрактов:
+
 - [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [LiteLLM Structured Outputs](https://docs.litellm.ai/docs/completion/json_mode)

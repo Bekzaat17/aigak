@@ -1,8 +1,103 @@
-import {useRef,useState} from 'react';
-import type {CaseRecord,Evidence,Finding,Lang} from '../shared/types';
+import { useRef, useState } from 'react';
+import type { CaseRecord, Evidence, Finding, Lang } from '../shared/types';
+import { useCaseMutation } from './hooks/useCaseMutation';
 /** Inspector marks a region on the original; no pixels or source bytes are rewritten. */
-export function RegionEditor({c,f,image,lang,onChange}:{c:CaseRecord;f:Finding;image:Evidence;lang:Lang;onChange:(c:CaseRecord)=>void}) {
- const [region,setRegion]=useState(f.region?.evidenceId===image.id?f.region:undefined);const start=useRef<{x:number;y:number}|null>(null);const [status,setStatus]=useState('');const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;
- const point=(e:React.PointerEvent<HTMLDivElement>)=>{const r=e.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))};};
- return <details className="region-editor"><summary>{t('Отметить место на изображении','Кескіндегі орынды белгілеу')}</summary><p>{t('Обведите нужный участок. Это ручная отметка инспектора, оригинал не изменяется.','Қажетті аймақты қоршаңыз. Бұл инспектор белгісі, түпнұсқа өзгермейді.')}</p><div className="region-canvas" onPointerDown={e=>{start.current=point(e);e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!start.current)return;const p=point(e),s=start.current;setRegion({evidenceId:image.id,author:'inspector',x:Math.min(p.x,s.x),y:Math.min(p.y,s.y),width:Math.abs(p.x-s.x),height:Math.abs(p.y-s.y)});setStatus('');}} onPointerUp={()=>{start.current=null;}} onPointerCancel={()=>{start.current=null;}}><img draggable={false} src={`/api/cases/${c.id}/evidence/${image.id}`} alt={t('Изображение для разметки','Белгілеуге арналған кескін')}/>{region&&<span style={{left:region.x*100+'%',top:region.y*100+'%',width:region.width*100+'%',height:region.height*100+'%'}}/>}</div><button className="secondary" disabled={!region?.width||!region?.height||status==='saving'} onClick={async()=>{setStatus('saving');try{const res=await fetch(`/api/cases/${c.id}/findings/${f.id}/region`,{method:'PATCH',headers:{'Content-Type':'application/json','X-Aigak-Client':'local'},body:JSON.stringify(region)});if(!res.ok)throw Error();onChange(await res.json());setStatus('saved');}catch{setStatus('error');}}}>{t('Сохранить отметку','Белгіні сақтау')}</button>{status==='saved'&&<p>{t('Отметка сохранена','Белгі сақталды')}</p>}{status==='error'&&<p role="alert">{t('Не удалось сохранить','Сақтау мүмкін болмады')}</p>}</details>;
+export function RegionEditor({
+  c,
+  f,
+  image,
+  lang,
+  onChange,
+}: {
+  c: CaseRecord;
+  f: Finding;
+  image: Evidence;
+  lang: Lang;
+  onChange: (c: CaseRecord) => void;
+}) {
+  const [region, setRegion] = useState(f.region?.evidenceId === image.id ? f.region : undefined);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const [status, setStatus] = useState('');
+  const mutate = useCaseMutation(c.id, onChange);
+  const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
+  const point = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+    };
+  };
+  return (
+    <details className="region-editor">
+      <summary>{t('Отметить место на изображении', 'Кескіндегі орынды белгілеу')}</summary>
+      <p>
+        {t(
+          'Обведите нужный участок. Это ручная отметка инспектора, оригинал не изменяется.',
+          'Қажетті аймақты қоршаңыз. Бұл инспектор белгісі, түпнұсқа өзгермейді.',
+        )}
+      </p>
+      <div
+        className="region-canvas"
+        onPointerDown={(e) => {
+          start.current = point(e);
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (!start.current) return;
+          const p = point(e),
+            s = start.current;
+          setRegion({
+            evidenceId: image.id,
+            author: 'inspector',
+            x: Math.min(p.x, s.x),
+            y: Math.min(p.y, s.y),
+            width: Math.abs(p.x - s.x),
+            height: Math.abs(p.y - s.y),
+          });
+          setStatus('');
+        }}
+        onPointerUp={() => {
+          start.current = null;
+        }}
+        onPointerCancel={() => {
+          start.current = null;
+        }}
+      >
+        <img
+          draggable={false}
+          src={`/api/cases/${c.id}/evidence/${image.id}`}
+          alt={t('Изображение для разметки', 'Белгілеуге арналған кескін')}
+        />
+        {region && (
+          <span
+            style={{
+              left: region.x * 100 + '%',
+              top: region.y * 100 + '%',
+              width: region.width * 100 + '%',
+              height: region.height * 100 + '%',
+            }}
+          />
+        )}
+      </div>
+      <button
+        className="secondary"
+        disabled={!region?.width || !region?.height || status === 'saving'}
+        onClick={async () => {
+          setStatus('saving');
+          try {
+            await mutate(`findings/${f.id}/region`, region);
+            setStatus('saved');
+          } catch {
+            setStatus('error');
+          }
+        }}
+      >
+        {t('Сохранить отметку', 'Белгіні сақтау')}
+      </button>
+      {status === 'saved' && <p>{t('Отметка сохранена', 'Белгі сақталды')}</p>}
+      {status === 'error' && (
+        <p role="alert">{t('Не удалось сохранить', 'Сақтау мүмкін болмады')}</p>
+      )}
+    </details>
+  );
 }

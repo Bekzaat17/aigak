@@ -1,12 +1,102 @@
-import {dossierText} from './dossier.ts';
-import {appendixNumber} from './appendices.ts';
-import { osintSummary } from '../../shared/osint.ts';
 import { aiStageDetails } from '../../shared/inspection-presentation.ts';
-import type { Lang } from '../../shared/types.ts';
-import type { PackageDocument } from './contracts.ts';
 import { levelName } from '../../shared/inspection.ts';
-export function templateFields(c:PackageDocument,lang:Lang):Record<string,string> {
-    const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;
-    const decision=(d:string)=>({pending:t('Не проверено','Тексерілмеген'),accepted:t('Подтверждено','Расталған'),rejected:t('Отклонено','Қабылданбаған')}[d]);
-    return {case_number:c.number,title:c.title,source_url:c.sourceUrl||t('URL не установлен','URL анықталмаған'),created_at:c.createdAt,officer:c.officer||'________________',notes:(c.notes||'________________')+'\n\n'+(c.followUps||[]).map(q=>q.question[lang]+'\n'+q.answer+'\n'+q.evidenceIds.map(id=>t('Приложение','Қосымша')+' '+appendixNumber(c,id)).join(', ')).join('\n\n')+'\n\n'+c.clarifications.map(q=>q.question[lang]+'\n'+({yes:t('Да','Иә'),no:t('Нет','Жоқ'),unknown:t('Не уверен','Сенімді емеспін'),'':t('Без ответа','Жауапсыз')}[q.answer])+': '+q.note).join('\n\n'),review_status:c.status==='verified'?t('Проверено офицером','Қызметкер тексерген'):t('Ожидает проверки','Тексеруді күтуде'),draft_notice:t('ПРОЕКТ. Не является решением о блокировке.','ЖОБА. Бұғаттау туралы шешім емес.')+(c.demo?t(' СИНТЕТИЧЕСКИЙ ПРИМЕР.',' СИНТЕТИКАЛЫҚ МЫСАЛ.'):''),assessment:c.assessment[lang]+'\n\n'+dossierText(c,lang)+(c.osint?'\n'+osintSummary(c.osint,lang):'')+(c.inspection?'\n'+levelName(c.analysisLevel)[lang]+'\n'+c.inspection.stages.map(s=>s.name[lang]+': '+s.summary[lang]+'\n'+aiStageDetails(s,lang)).join('\n'):''),likelihood:c.likelihood===null?t('Не рассчитана для этого результата','Бұл нәтиже үшін есептелмеген'):`${c.likelihood}% — ${t('предварительная оценка AI, не откалибрована','AI алдын ала бағасы, калибрленбеген')}`,findings:c.findings.map((f,i)=>`${i+1}. ${f.title[lang]}${f.scope==='related'?t(' (другой ресурс)',' (басқа ресурс)'):''} [${decision(f.decision)}]\n«${f.quote}»\n${f.explanation[lang]}\n${t('Комментарий инспектора','Инспектор түсініктемесі')}: ${f.note||'—'}\n${t('Источник','Дереккөз')}: ${t('Приложение','Қосымша')} ${appendixNumber(c,f.evidenceId)} [${f.start}, ${f.end})`).join('\n\n')||t('Признаки не найдены; проверьте полноту материалов.','Белгілер табылмады; материалдардың толықтығын тексеріңіз.'),evidence_list:c.evidence.map((e,i)=>`${i+1}. ${e.name} (${e.size} bytes)\nID: ${e.id}\nSHA-256: ${e.sha256}\n${e.createdAt} / ${e.method}`).join('\n\n'),limitations:[...c.issues.map(i=>i[lang]),t('Форма и правовое основание требуют проверки специалистом. Контрольные суммы не удостоверяют автора, время публикации или юридическую допустимость.','Нысан мен құқықтық негізді маман тексеруі тиіс. Бақылау сомалары авторды, жариялау уақытын немесе құқықтық жарамдылықты куәландырмайды.')].join('\n')};
+import { osintSummary } from '../../shared/osint.ts';
+import type { Lang } from '../../shared/types.ts';
+import { appendixNumber } from './appendices.ts';
+import type { PackageDocument } from './contracts.ts';
+import { dossierText } from './dossier.ts';
+export function templateFields(c: PackageDocument, lang: Lang): Record<string, string> {
+  const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
+  const decision = (d: string) =>
+    ({
+      pending: t('Не проверено', 'Тексерілмеген'),
+      accepted: t('Подтверждено', 'Расталған'),
+      rejected: t('Отклонено', 'Қабылданбаған'),
+    })[d];
+  return {
+    case_number: c.number,
+    title: c.title,
+    source_url: c.sourceUrl || t('URL не установлен', 'URL анықталмаған'),
+    created_at: c.createdAt,
+    officer: c.officer || '________________',
+    notes:
+      (c.notes || '________________') +
+      '\n\n' +
+      (c.followUps || [])
+        .map(
+          (q) =>
+            q.question[lang] +
+            '\n' +
+            q.answer +
+            '\n' +
+            q.evidenceIds
+              .map((id) => t('Приложение', 'Қосымша') + ' ' + appendixNumber(c, id))
+              .join(', '),
+        )
+        .join('\n\n') +
+      '\n\n' +
+      c.clarifications
+        .map(
+          (q) =>
+            q.question[lang] +
+            '\n' +
+            {
+              yes: t('Да', 'Иә'),
+              no: t('Нет', 'Жоқ'),
+              unknown: t('Не уверен', 'Сенімді емеспін'),
+              '': t('Без ответа', 'Жауапсыз'),
+            }[q.answer] +
+            ': ' +
+            q.note,
+        )
+        .join('\n\n'),
+    review_status:
+      c.status === 'verified'
+        ? t('Проверено офицером', 'Қызметкер тексерген')
+        : t('Ожидает проверки', 'Тексеруді күтуде'),
+    draft_notice:
+      t('ПРОЕКТ. Не является решением о блокировке.', 'ЖОБА. Бұғаттау туралы шешім емес.') +
+      (c.demo ? t(' СИНТЕТИЧЕСКИЙ ПРИМЕР.', ' СИНТЕТИКАЛЫҚ МЫСАЛ.') : ''),
+    assessment:
+      c.assessment[lang] +
+      '\n\n' +
+      dossierText(c, lang) +
+      (c.osint ? '\n' + osintSummary(c.osint, lang) : '') +
+      (c.inspection
+        ? '\n' +
+          levelName(c.analysisLevel)[lang] +
+          '\n' +
+          c.inspection.stages
+            .map((s) => s.name[lang] + ': ' + s.summary[lang] + '\n' + aiStageDetails(s, lang))
+            .join('\n')
+        : ''),
+    likelihood:
+      c.likelihood === null
+        ? t('Не рассчитана для этого результата', 'Бұл нәтиже үшін есептелмеген')
+        : `${c.likelihood}% — ${t('предварительная оценка AI, не откалибрована', 'AI алдын ала бағасы, калибрленбеген')}`,
+    findings:
+      c.findings
+        .map(
+          (f, i) =>
+            `${i + 1}. ${f.title[lang]}${f.scope === 'related' ? t(' (другой ресурс)', ' (басқа ресурс)') : ''} [${decision(f.decision)}]\n«${f.quote}»\n${f.explanation[lang]}\n${t('Комментарий инспектора', 'Инспектор түсініктемесі')}: ${f.note || '—'}\n${t('Источник', 'Дереккөз')}: ${t('Приложение', 'Қосымша')} ${appendixNumber(c, f.evidenceId)} [${f.start}, ${f.end})`,
+        )
+        .join('\n\n') ||
+      t(
+        'Признаки не найдены; проверьте полноту материалов.',
+        'Белгілер табылмады; материалдардың толықтығын тексеріңіз.',
+      ),
+    evidence_list: c.evidence
+      .map(
+        (e, i) =>
+          `${i + 1}. ${e.name} (${e.size} bytes)\nID: ${e.id}\nSHA-256: ${e.sha256}\n${e.createdAt} / ${e.method}`,
+      )
+      .join('\n\n'),
+    limitations: [
+      ...c.issues.map((i) => i[lang]),
+      t(
+        'Форма и правовое основание требуют проверки специалистом. Контрольные суммы не удостоверяют автора, время публикации или юридическую допустимость.',
+        'Нысан мен құқықтық негізді маман тексеруі тиіс. Бақылау сомалары авторды, жариялау уақытын немесе құқықтық жарамдылықты куәландырмайды.',
+      ),
+    ].join('\n'),
+  };
 }

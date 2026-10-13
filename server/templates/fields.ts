@@ -1,0 +1,15 @@
+export const fields = [
+  'case_number',
+  'title',
+  'source_url',
+  'created_at',
+  'officer',
+  'notes',
+  'findings',
+  'evidence_list',
+  'limitations',
+  'assessment',
+  'likelihood',
+  'review_status',
+  'draft_notice',
+];

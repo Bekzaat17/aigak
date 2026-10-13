@@ -1,18 +1,47 @@
+import type {
+  AiAttempt,
+  AiReview,
+  AnalysisLevel,
+  CaseRecord,
+  Evidence,
+  Finding,
+  InspectionRun,
+  InspectionStage,
+  LegalHypothesis,
+  Localized,
+} from '../../shared/types.ts';
 import type { AiTask } from '../ai/contracts.ts';
-import type { AiAttempt, AiReview, AnalysisLevel, CaseRecord, Evidence, Finding, InspectionRun, InspectionStage, Localized, LegalHypothesis } from '../../shared/types.ts';
 
-export interface AiResult { findings: Finding[]; likelihood: number; assessment: Localized; review?:AiReview;legalHypotheses?:LegalHypothesis[] }
+export interface AiResult {
+  findings: Finding[];
+  likelihood: number;
+  assessment: Localized;
+  review?: AiReview;
+  legalHypotheses?: LegalHypothesis[];
+}
 export interface AiAnalyzer {
   readonly available: boolean;
-  analyze(evidence: Evidence[], options: {signal:AbortSignal;task:AiTask;candidates?:Finding[];previousStages?:InspectionStage[];osint?:CaseRecord['osint'];inspectorResponses?:CaseRecord['followUps'];beforeAttempt?:()=>void;onAttempt?:(attempt:AiAttempt)=>void}): Promise<AiResult>;
+  analyze(
+    evidence: Evidence[],
+    options: {
+      signal: AbortSignal;
+      task: AiTask;
+      candidates?: Finding[];
+      previousStages?: InspectionStage[];
+      osint?: CaseRecord['osint'];
+      inspectorResponses?: CaseRecord['followUps'];
+      beforeAttempt?: () => void;
+      onAttempt?: (attempt: AiAttempt) => void;
+    },
+  ): Promise<AiResult>;
 }
 export interface CheckContext {
-  readonly osint?:CaseRecord['osint'];
+  readonly osint?: CaseRecord['osint'];
   readonly evidence: Evidence[];
   readonly findings: Finding[];
   readonly links: string[];
   readonly signal: AbortSignal;
-  analyze(task:AiTask): Promise<AiResult>;
+  analyze(task: AiTask): Promise<AiResult>;
 }
 export interface CheckResult {
   status: 'completed' | 'partial' | 'skipped';
@@ -22,8 +51,8 @@ export interface CheckResult {
   assessment?: Localized;
   likelihood?: number;
   replaceFindings?: boolean;
-  review?:AiReview;
-  legalHypotheses?:LegalHypothesis[];
+  review?: AiReview;
+  legalHypotheses?: LegalHypothesis[];
 }
 export interface InspectionCheck {
   readonly id: string;
@@ -39,8 +68,22 @@ export interface InspectionStrategy {
   readonly timeoutMs: number;
 }
 export interface InspectionResult {
-  findings: Finding[]; assessment: Localized; likelihood: number|null;
-  engine: 'rules'|'ai'; issues:Localized[]; run:InspectionRun;
+  findings: Finding[];
+  assessment: Localized;
+  likelihood: number | null;
+  engine: 'rules' | 'ai';
+  issues: Localized[];
+  run: InspectionRun;
 }
-export type InspectionInput = Pick<CaseRecord,'analysisLevel'|'evidence'|'links'|'osint'|'followUps'>;
-export type ProgressObserver = (stage:InspectionStage) => void;
+export type InspectionInput = Pick<
+  CaseRecord,
+  'analysisLevel' | 'evidence' | 'links' | 'osint' | 'followUps'
+>;
+export type ProgressObserver = (stage: InspectionStage) => void;
+
+export interface CheckResolver {
+  create(id: string): InspectionCheck;
+}
+export interface StrategyResolver {
+  create(level: AnalysisLevel): InspectionStrategy;
+}
