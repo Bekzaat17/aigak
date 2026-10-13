@@ -1,11 +1,10 @@
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import Docxtemplater from 'docxtemplater';
-import { levelName } from '../shared/inspection.ts';
 import PizZip from 'pizzip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { CaseRecord, Lang } from '../shared/types.ts';
+import type { Lang } from '../shared/types.ts';
 import { Store, sha256 } from './store.ts';
 
 export const fields=['case_number','title','source_url','created_at','officer','notes','findings','evidence_list','limitations','assessment','likelihood','review_status','draft_notice'];
@@ -43,13 +42,7 @@ export class Templates {
     const row=this.store.db.prepare('SELECT sha256 FROM templates WHERE id=?').get(id) as {sha256:string}|undefined;if(!row)throw new Error('NOT_FOUND');
     const data=readFileSync(path.join(this.store.dir,'templates',`${id}.docx`));if(sha256(data)!==row.sha256)throw new Error('INTEGRITY_FAILED');return data;
   }
-  async render(c:CaseRecord,lang:Lang) {
-    const raw=await this.raw(c.templateId,lang);const doc=new Docxtemplater(new PizZip(raw),{paragraphLoop:true,linebreaks:true,nullGetter:()=>''});
-    const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;
-    const decision=(d:string)=>({pending:t('Не проверено','Тексерілмеген'),accepted:t('Подтверждено','Расталған'),rejected:t('Отклонено','Қабылданбаған')}[d]);
-    doc.render({case_number:c.number,title:c.title,source_url:c.sourceUrl||t('URL не установлен','URL анықталмаған'),created_at:c.createdAt,officer:c.officer||'________________',notes:(c.notes||'________________')+'\n\n'+c.clarifications.map(q=>q.question[lang]+'\n'+({yes:t('Да','Иә'),no:t('Нет','Жоқ'),unknown:t('Не уверен','Сенімді емеспін'),'':t('Без ответа','Жауапсыз')}[q.answer])+': '+q.note).join('\n\n'),review_status:c.status==='verified'?t('Проверено офицером','Қызметкер тексерген'):t('Ожидает проверки','Тексеруді күтуде'),draft_notice:t('ПРОЕКТ. Не является решением о блокировке.','ЖОБА. Бұғаттау туралы шешім емес.')+(c.demo?t(' СИНТЕТИЧЕСКИЙ ПРИМЕР.',' СИНТЕТИКАЛЫҚ МЫСАЛ.'):''),assessment:c.assessment[lang]+(c.inspection?'\n'+levelName(c.analysisLevel)[lang]+'\n'+c.inspection.stages.map(s=>s.name[lang]+': '+s.summary[lang]).join('\n'):''),likelihood:c.likelihood===null?t('Не рассчитана для этого результата','Бұл нәтиже үшін есептелмеген'):`${c.likelihood}% — ${t('предварительная оценка AI, не откалибрована','AI алдын ала бағасы, калибрленбеген')}`,findings:c.findings.map((f,i)=>`${i+1}. ${f.title[lang]} [${decision(f.decision)}]\n«${f.quote}»\n${f.explanation[lang]}\n${t('Комментарий инспектора','Инспектор түсініктемесі')}: ${f.note||'—'}\n${t('Источник','Дереккөз')}: ${f.evidenceId} [${f.start}, ${f.end})`).join('\n\n')||t('Признаки не найдены; проверьте полноту материалов.','Белгілер табылмады; материалдардың толықтығын тексеріңіз.'),evidence_list:c.evidence.map((e,i)=>`${i+1}. ${e.name} (${e.size} bytes)\nID: ${e.id}\nSHA-256: ${e.sha256}\n${e.createdAt} / ${e.method}`).join('\n\n'),limitations:[...c.issues.map(i=>i[lang]),t('Форма и правовое основание требуют проверки специалистом. Контрольные суммы не удостоверяют автора, время публикации или юридическую допустимость.','Нысан мен құқықтық негізді маман тексеруі тиіс. Бақылау сомалары авторды, жариялау уақытын немесе құқықтық жарамдылықты куәландырмайды.')].join('\n')});
-    return doc.getZip().generate({type:'nodebuffer',compression:'DEFLATE'});
-  }
+
 }
 export async function defaultTemplate(lang:Lang='ru') {
   const t=(ru:string,kk:string)=>lang==='ru'?ru:kk;

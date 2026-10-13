@@ -19,6 +19,11 @@ export interface Evidence {
 export interface Finding {
   id: string; category: string; title: Localized; explanation: Localized;
   evidenceId: string; quote: string; start: number; end: number;
+  rule?: {
+    id:string; version:string; kind:'term'|'combination';
+    matches:{termId:string;start:number;end:number;text:string}[];
+    contexts:{id:string;title:Localized;question:Localized;quote:string;start:number;end:number}[];
+  };
   agentIds?: string[]; engine: 'rules' | 'ai'; decision: Decision; note?: string;
 }
 export interface AuditEvent { id: string; at: string; action: string; detail: string; previousHash: string; hash: string }

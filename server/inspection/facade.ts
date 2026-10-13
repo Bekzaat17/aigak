@@ -10,7 +10,7 @@ function validateFindings(findings:Finding[],input:InspectionInput){
 function mergeFindings(existing:Finding[],incoming:Finding[],agentId:string):Finding[]{
   const result=structuredClone(existing);
   for(const finding of incoming){
-    const same=result.find(f=>f.evidenceId===finding.evidenceId&&f.category===finding.category&&f.quote===finding.quote);
+    const same=result.find(f=>f.evidenceId===finding.evidenceId&&f.category===finding.category&&f.quote===finding.quote&&f.rule?.id===finding.rule?.id);
     if(same)same.agentIds=[...new Set([...(same.agentIds||[]),agentId])];
     else result.push({...finding,decision:'pending',agentIds:[agentId]});
   }

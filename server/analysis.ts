@@ -2,23 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Evidence, Finding, Localized } from '../shared/types.ts';
 
-const rules: { category:string; title:Localized; expression: RegExp; explanation:Localized }[] = [
-  {category:'gambling', title:{ru:'Упоминание азартных игр',kk:'Құмар ойындардың аталуы'}, expression:/(?:казино|casino|онлайн[ -]?казино|құмар ойын|слот[а-я]*|slots?|рулетк[а-я]*|roulette|букмекер[а-я]*)/iu, explanation:{ru:'В материале найдены термины, связанные с азартными играми. Упоминание само по себе не доказывает предложение игры: проверьте контекст.',kk:'Материалда құмар ойындарға қатысты сөздер бар. Аталуы ойын ұсынуды өздігінен дәлелдемейді: мәнмәтінді тексеріңіз.'}},
-  {category:'incentive', title:{ru:'Бонус или призыв к участию',kk:'Бонус немесе қатысуға шақыру'}, expression:/(?:фриспин[а-я]*|free\s*spins?|бонус[а-я]*|bonus|промокод[а-я]*|тегін айналым|тіркел[а-яәіңғүұқөһ]*|игра[йи][а-я]* сейчас)/iu, explanation:{ru:'Есть рекламный стимул или призыв. Необходимо установить его связь с конкретным игорным предложением.',kk:'Жарнамалық ынталандыру немесе шақыру бар. Оның нақты ойын ұсынысына қатысын анықтау қажет.'}},
-  {category:'payment', title:{ru:'Пополнение или вывод средств',kk:'Қаражат салу немесе шығару'}, expression:/(?:депозит[а-я]*|deposit|пополн[а-я]*|вывод\s+(?:средств|денег)|withdraw[al]*|ақша\s+(?:салу|шығару)|шотты толтыр[а-яәіңғүұқөһ]*)/iu, explanation:{ru:'Упомянуты денежные операции. По одному тексту нельзя подтвердить факт приёма платежей.',kk:'Ақша операциялары аталған. Тек мәтін арқылы төлем қабылдау фактісін растау мүмкін емес.'}},
-  {category:'bet', title:{ru:'Ставки или обещание выигрыша',kk:'Бәс тігу немесе ұтыс уәдесі'}, expression:/(?:ставк[аиу]|jackpot|джекпот|выигр[а-я]*|бәс\s*тіг[а-яәіңғүұқөһ]*|ұтыс|ұтып ал)/iu, explanation:{ru:'Найдена лексика ставок или выигрыша. Офицер проверяет смысл и условия предложения.',kk:'Бәс тігу немесе ұтыс сөздері табылды. Қызметкер ұсыныстың мағынасы мен шарттарын тексереді.'}},
-];
-export function analyzeRules(evidence: Evidence[]): Finding[] {
-  const findings: Finding[] = [];
-  for (const e of evidence.filter(e => e.text)) {
-    for (const rule of rules) {
-      const match = rule.expression.exec(e.text!); if (!match) continue;
-      const start = Math.max(0, match.index - 65); const end = Math.min(e.text!.length, match.index + match[0].length + 100);
-      findings.push({id:randomUUID(),category:rule.category,title:rule.title,explanation:rule.explanation,evidenceId:e.id,quote:e.text!.slice(start,end),start,end,engine:'rules',decision:'pending'});
-    }
-  }
-  return findings;
-}
+export { analyzeRules } from './rules/engine.ts';
 const bilingual = z.object({ru:z.string().min(1).max(1500),kk:z.string().min(1).max(1500)}).strict();
 const aiResult = z.object({ likelihood:z.number().min(0).max(100), assessment:bilingual, findings:z.array(z.object({category:z.enum(['gambling','incentive','payment','bet']),title:bilingual,explanation:bilingual,evidenceId:z.string(),quote:z.string().min(3).max(1000)}).strict()).max(20) }).strict();
 export function validateAiFindings(raw: unknown, evidence: Evidence[]): Finding[] {
