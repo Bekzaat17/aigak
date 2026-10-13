@@ -23,6 +23,8 @@ export function linkedHypotheses(c:CaseRecord,f:Finding){
 }
 
 export function contentVerdict(c:CaseRecord):'confirmed'|'indicators'|'not_found'|'insufficient'|'rejected'{
+ const targetFindings=c.findings.filter(f=>f.scope!=='related');
+ if(c.findings.length&&!targetFindings.length)return 'insufficient';
  const final=c.inspection?.stages?.find(s=>s.id==='pro_review'&&s.status==='completed')||c.inspection?.stages?.find(s=>s.id==='verification'&&s.status==='completed');
  if(c.status==='verified'&&c.findings.some(f=>f.decision==='accepted'))return 'confirmed';
  if(c.status==='failed'||!c.evidence.some(e=>e.text?.trim()))return 'insufficient';

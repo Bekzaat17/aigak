@@ -4,7 +4,7 @@ import type { AiAttempt, AiReview, AnalysisLevel, CaseRecord, Evidence, Finding,
 export interface AiResult { findings: Finding[]; likelihood: number; assessment: Localized; review?:AiReview;legalHypotheses?:LegalHypothesis[] }
 export interface AiAnalyzer {
   readonly available: boolean;
-  analyze(evidence: Evidence[], options: {signal:AbortSignal;task:AiTask;candidates?:Finding[];previousStages?:InspectionStage[];osint?:CaseRecord['osint'];beforeAttempt?:()=>void;onAttempt?:(attempt:AiAttempt)=>void}): Promise<AiResult>;
+  analyze(evidence: Evidence[], options: {signal:AbortSignal;task:AiTask;candidates?:Finding[];previousStages?:InspectionStage[];osint?:CaseRecord['osint'];inspectorResponses?:CaseRecord['followUps'];beforeAttempt?:()=>void;onAttempt?:(attempt:AiAttempt)=>void}): Promise<AiResult>;
 }
 export interface CheckContext {
   readonly osint?:CaseRecord['osint'];
@@ -42,5 +42,5 @@ export interface InspectionResult {
   findings: Finding[]; assessment: Localized; likelihood: number|null;
   engine: 'rules'|'ai'; issues:Localized[]; run:InspectionRun;
 }
-export type InspectionInput = Pick<CaseRecord,'analysisLevel'|'evidence'|'links'|'osint'>;
+export type InspectionInput = Pick<CaseRecord,'analysisLevel'|'evidence'|'links'|'osint'|'followUps'>;
 export type ProgressObserver = (stage:InspectionStage) => void;

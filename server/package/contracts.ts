@@ -3,6 +3,10 @@ import type { AnalysisLevel, AuditEvent, Evidence, Finding, InspectionRun, Lang,
 
 /** Versioned hand-off from any analysis workflow. No queue, storage or AI dependency. */
 export interface PackageDocument {
+  materialsPending?:boolean;
+  legalReview?:import('../../shared/types.ts').CaseRecord['legalReview'];
+  previewImages?:Record<string,string>;
+  followUps?:import('../../shared/types.ts').FollowUp[];revisions?:import('../../shared/types.ts').CaseRevision[];
   schemaVersion: 'aigak-package-input/1';
   id:string; number:string; title:string; sourceUrl?:string; createdAt:string;
   status:'draft'|'verified'; demo:boolean; officer:string; notes:string;

@@ -1,3 +1,4 @@
+import {previewImages} from './appendices.ts';
 import { createHash } from 'node:crypto';
 import type { ArchiveWriter, DocumentRenderer, PackageInput, PackageResult, PdfRenderer, ReportLayout, PackageFile } from './contracts.ts';
 import { verifyScript } from './verify-script.ts';
@@ -41,6 +42,9 @@ export class EvidencePackageService {
       const allFindings=[...c.findings,...(c.inspection?.stages||[]).flatMap(s=>s.observations)];
       if(!c.osint?.legalNorms?.some(n=>n.id===h.normId&&n.quote.includes(h.normQuote))||h.findingIds.some(id=>!allFindings.some(f=>f.id===id)))throw new Error('UNGROUNDED_LEGAL_HYPOTHESIS');
     }
+    for(const f of c.findings)if(f.region){const r=f.region;
+      if(!c.evidence.some(e=>e.id===r.evidenceId&&e.mime.startsWith('image/'))||![r.x,r.y,r.width,r.height].every(Number.isFinite)||r.x<0||r.y<0||r.width<=0||r.height<=0||r.x+r.width>1.001||r.y+r.height>1.001)throw Error('INVALID_REGION');
+    }
     // Structure both formats consistently; rejected observations remain visible.
     const order={accepted:0,pending:1,rejected:2};
     c.findings.sort((a,b)=>order[a.decision]-order[b.decision]);
@@ -53,8 +57,11 @@ export class EvidencePackageService {
     for(const e of c.evidence)add('evidence/'+e.storedName,evidence.get(e.id)!);
     add('case.json',JSON.stringify(c,null,2));
     add('audit.json',JSON.stringify(c.audit,null,2));
+    if(c.revisions?.length)add('revisions.json',JSON.stringify(c.revisions,null,2));
     if(c.osint)add('osint.json',JSON.stringify(c.osint,null,2));
     if(c.inspection)add('inspection.json',JSON.stringify(c.inspection,null,2));
+    c.previewImages=previewImages(c,id=>evidence.get(id)!);
+    add('appendices.json',JSON.stringify(c.evidence.map((e,i)=>({number:i+1,evidenceId:e.id,path:'evidence/'+e.storedName,sha256:e.sha256})),null,2));
     const reports=[];
     for(const lang of ['ru','kk'] as const){
       const html=layout.html(c,lang);

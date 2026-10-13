@@ -68,8 +68,8 @@ export class DetectiveService {
   }finally{clearTimeout(timer);controller.abort();}
   const checked=report.candidates.filter(c=>c.status==='dns_checked').length;
   report.stages.push({id:'detective',version:'1.0.0',status:'partial',durationMs:Date.now()-started,evidenceIds:[...new Set(report.relations.flatMap(r=>r.evidenceIds))],summary:{
-   ru:`Технических связей: ${report.relations.length}. Кандидатов из сертификата: ${hosts.length}; DNS проверен: ${checked}, лимит ${this.maxCandidates}. Связи не доказывают общего владельца или зеркалирование. Внешний поиск, CT и passive DNS не подключены; содержимое кандидатов не анализировалось.`,
-   kk:`Техникалық байланыстар: ${report.relations.length}. Сертификаттан үміткерлер: ${hosts.length}; DNS тексерілді: ${checked}, шегі ${this.maxCandidates}. Байланыстар ортақ иені не айна сайтты дәлелдемейді. Сыртқы іздеу, CT және passive DNS қосылмаған; үміткерлер мазмұны талданбады.`,
+   ru:`Технических связей: ${report.relations.length}. Кандидатов из сертификата: ${hosts.length}; DNS проверен: ${checked}, лимит ${this.maxCandidates}. Связи не доказывают общего владельца или зеркалирование. Этот этап проверяет DNS; результаты поиска и содержимого перечислены отдельно.`,
+   kk:`Техникалық байланыстар: ${report.relations.length}. Сертификаттан үміткерлер: ${hosts.length}; DNS тексерілді: ${checked}, шегі ${this.maxCandidates}. Байланыстар ортақ иені не айна сайтты дәлелдемейді. Бұл кезең DNS тексереді; іздеу және мазмұн нәтижелері бөлек көрсетілген.`,
   }});
   report.status='partial';
  }

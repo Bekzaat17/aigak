@@ -35,6 +35,7 @@ export class Store {
   }
   read(c: CaseRecord, e: Evidence) { return readFileSync(path.join(this.dir, 'evidence', c.id, e.storedName)); }
   verify(c: CaseRecord) {
+    for(const revision of c.revisions||[]){const {sha256:expected,...snapshot}=revision;if(expected&&sha256(JSON.stringify(snapshot))!==expected)throw new Error('INTEGRITY_FAILED');}
     for (const e of c.evidence) { if (sha256(this.read(c, e)) !== e.sha256) throw new Error('INTEGRITY_FAILED'); }
     let prev = '0'.repeat(64);
     for (const { hash, ...e } of c.audit) { if (e.previousHash !== prev || sha256(JSON.stringify(e)) !== hash) throw new Error('INTEGRITY_FAILED'); prev = hash; }

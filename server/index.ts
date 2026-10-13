@@ -1,3 +1,10 @@
+import {previewImages} from './package/appendices.ts';
+import {reportHtml as renderPackageHtml} from './package/html.ts';
+import {DocxRenderer} from './package/adapters.ts';
+import {templateFields} from './package/fields.ts';
+import {packageDocument} from './export.ts';
+import {startRevision} from './revisions.ts';
+import {reportHtml} from './export.ts';
 import {normalizeUrlInput} from '../shared/url-input.ts';
 import { createInspectionFacade } from './inspection/index.ts';
 import { createAiAnalyzer } from './inspection/provider.ts';
@@ -74,6 +81,71 @@ app.patch('/api/cases/:id/clarifications/:questionId',(req,res)=>{
   const c=store.get(req.params.id);if(!c)throw new Error('NOT_FOUND');if(busyStatuses.includes(c.status))throw new Error('CASE_BUSY');
   const q=c.clarifications.find(q=>q.id===req.params.questionId);if(!q)throw new Error('NOT_FOUND');
   q.answer=input.answer;q.note=input.note;c.status='review';delete c.reviewedAt;store.event(c,'clarification.answered',`${q.id}: ${q.answer}; ${q.note}`);res.json(c);
+});
+app.patch('/api/cases/:id/questions/:questionId',(req,res)=>{
+ const input=z.object({answer:z.string().trim().max(4000),evidenceIds:z.array(z.string()).max(30)}).parse(req.body);
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');
+ if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ const q=c.followUps?.find(q=>q.id===req.params.questionId);if(!q)throw Error('NOT_FOUND');
+ if(input.evidenceIds.some(id=>!c.evidence.some(e=>e.id===id)))throw Error('NOT_FOUND');
+ Object.assign(q,input);c.status='review';delete c.reviewedAt;
+ store.event(c,'question.answered',JSON.stringify({id:q.id,...input}));res.json(c);
+});
+app.post('/api/cases/:id/materials',upload.array('files',5),(req,res)=>{
+ const c=store.get(String(req.params.id));if(!c)throw Error('NOT_FOUND');
+ if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ const text=z.string().max(180000).default('').parse(req.body.text);
+ const files=(req.files||[]) as Express.Multer.File[];
+ if(!text.trim()&&!files.length)throw Error('EMPTY_INPUT');
+ const prepared=files.map(file=>{const name=Buffer.from(file.originalname,'latin1').toString('utf8').replace(/[\x00-\x1f/\\]/g,'_').slice(0,160)||'file';return {file,name,mime:detectMime(file.buffer,name)};});
+ c.status='review';delete c.reviewedAt;
+ if(text.trim())store.addEvidence(c,Buffer.from(text),{name:'additional-text.txt',mime:'text/plain',kind:'original',method:'inspector-addition'});
+ for(const {file,name,mime} of prepared)store.addEvidence(c,file.buffer,{name,mime,kind:'original',method:'inspector-addition'});
+ c.materialsPending=true;store.event(c,'materials.added');res.json(c);
+});
+app.post('/api/cases/:id/reanalyze',(req,res)=>{
+ const {analysisLevel}=z.object({analysisLevel:z.enum(['basic','advanced','pro'])}).parse(req.body);
+ if(queue.pending.length>=20)throw Error('QUEUE_FULL');
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');
+ startRevision(store,c,analysisLevel);queue.add(c.id);res.status(202).json(store.get(c.id));
+});
+app.get('/api/cases/:id/preview',(req,res)=>{
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');
+ const lang=z.enum(['ru','kk']).default('ru').parse(req.query.lang);store.verify(c);
+ res.setHeader('Content-Security-Policy',"sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
+ res.setHeader('X-Frame-Options','SAMEORIGIN');
+ const document=packageDocument(c);document.previewImages=previewImages(document,id=>store.read(c,c.evidence.find(e=>e.id===id)!));
+ res.type('html').send(renderPackageHtml(document,lang));
+});
+app.patch('/api/cases/:id/relations/:relationId',(req,res)=>{
+ const input=z.object({decision:z.enum(['accepted','rejected','pending']),note:z.string().max(2000)}).parse(req.body);
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ const relation=c.osint?.relations?.find(r=>r.id===req.params.relationId);if(!relation)throw Error('NOT_FOUND');
+ Object.assign(relation,input);c.status='review';delete c.reviewedAt;store.event(c,'relation.reviewed',JSON.stringify({id:relation.id,...input}));res.json(c);
+});
+app.patch('/api/cases/:id/findings/:findingId/region',(req,res)=>{
+ const input=z.object({evidenceId:z.string(),x:z.number().min(0).max(1),y:z.number().min(0).max(1),width:z.number().positive().max(1),height:z.number().positive().max(1)}).parse(req.body);
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ if(input.x+input.width>1.001||input.y+input.height>1.001||!c.evidence.some(e=>e.id===input.evidenceId&&e.mime.startsWith('image/')))throw Error('INVALID_REGION');
+ const f=c.findings.find(f=>f.id===req.params.findingId);if(!f)throw Error('NOT_FOUND');
+ f.region={...input,author:'inspector'};c.status='review';delete c.reviewedAt;
+ store.event(c,'finding.region',JSON.stringify({id:f.id,...input}));res.json(c);
+});
+app.get('/api/cases/:id/document',async(req,res)=>{
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');const lang=z.enum(['ru','kk']).default('ru').parse(req.query.lang);
+ store.verify(c);const bytes=new DocxRenderer().render(await templates.raw(c.templateId,lang),templateFields(packageDocument(c),lang));
+ res.type('application/vnd.openxmlformats-officedocument.wordprocessingml.document').attachment(c.number+'-'+lang+'.docx').send(bytes);
+});
+app.patch('/api/cases/:id/template',(req,res)=>{
+ const {templateId}=z.object({templateId:z.string()}).parse(req.body);if(!templates.has(templateId))throw Error('NOT_FOUND');
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ c.templateId=templateId;c.status='review';delete c.reviewedAt;store.event(c,'template.selected',templateId);res.json(c);
+});
+app.patch('/api/cases/:id/legal-review',(req,res)=>{
+ const input=z.object({eventDate:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),jurisdictionConfirmed:z.boolean(),editionConfirmed:z.boolean(),officer:z.string().trim().min(2).max(150),note:z.string().trim().min(10).max(5000)}).parse(req.body);
+ if(Number.isNaN(Date.parse(input.eventDate))||new Date(input.eventDate).toISOString().slice(0,10)!==input.eventDate)throw Error('VALIDATION_ERROR');
+ const c=store.get(req.params.id);if(!c)throw Error('NOT_FOUND');if(busyStatuses.includes(c.status))throw Error('CASE_BUSY');
+ c.legalReview=input;c.status='review';delete c.reviewedAt;store.event(c,'legal.reviewed',JSON.stringify(input));res.json(c);
 });
 app.post('/api/cases/:id/review',(req,res)=>{
   const {officer,notes}=z.object({officer:z.string().trim().min(2).max(150),notes:z.string().trim().min(5).max(5000)}).parse(req.body);

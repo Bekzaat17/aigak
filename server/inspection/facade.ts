@@ -44,7 +44,7 @@ export class InspectionFacade {
               analyze:async(task:AiTask)=>{
                 if(!check.requiresAi||aiCalls>=strategy.maxAiCalls)throw new Error('AI_BUDGET_EXCEEDED');
                 controller.signal.throwIfAborted();aiCalls++;
-                return this.ai.analyze(structuredClone(input.evidence),{task,osint:structuredClone(input.osint),signal:controller.signal,candidates:structuredClone(findings),previousStages:structuredClone(stages),beforeAttempt:()=>{if(attempts>=strategy.maxAiCalls*4)throw new Error('AI_BUDGET_EXCEEDED');attempts++;},onAttempt:attempt=>aiAttempts.push(attempt)});
+                return this.ai.analyze(structuredClone(input.evidence),{task,inspectorResponses:structuredClone(input.followUps),osint:structuredClone(input.osint),signal:controller.signal,candidates:structuredClone(findings),previousStages:structuredClone(stages),beforeAttempt:()=>{if(attempts>=strategy.maxAiCalls*4)throw new Error('AI_BUDGET_EXCEEDED');attempts++;},onAttempt:attempt=>aiAttempts.push(attempt)});
               },
             };
             // Enforce the run deadline even for custom providers that ignore cancellation.
@@ -57,6 +57,7 @@ export class InspectionFacade {
               })]);
             } finally {controller.signal.removeEventListener('abort',abortListener);}
             validateFindings(result.findings||[],input);
+            for(const finding of result.findings||[])finding.scope=input.evidence.find(e=>e.id===finding.evidenceId)?.method.startsWith('detective-')?'related':'target';
             for(const h of result.legalHypotheses||[]){
               if(!h.normQuote||!input.osint?.legalNorms?.some(n=>n.id===h.normId&&n.quote.includes(h.normQuote))||!h.findingIds.length||h.findingIds.some(id=>!findings.some(f=>f.id===id)))throw new Error('UNGROUNDED_LEGAL_HYPOTHESIS');
             }

@@ -10,11 +10,11 @@ export interface OsintStage {
   summary:Localized; evidenceIds:string[]; durationMs:number;
 }
 export interface ResourceRelation {
- id:string; from:string; to:string; kind:"certificate_contains"|"links_to"|"resolves_to";
- evidenceIds:string[]; status:"observed"; checkedAt:string;
+ id:string; from:string; to:string; kind:"certificate_contains"|"links_to"|"resolves_to"|"ct_contains"|"shared_contact"|"shared_business_id"|"similar_content";
+ evidenceIds:string[]; decision?:"pending"|"accepted"|"rejected";note?:string;description?:string; status:"observed"; checkedAt:string;
 }
-export interface DomainCandidate {hostname:string;status:"not_checked"|"dns_checked"|"unavailable";evidenceIds:string[]}
-export interface LegalNorm {id:string;article:string;quote:string;evidenceId:string;sourceUrl:string;retrievedAt:string;temporalStatus:"requires_review"}
+export interface DomainCandidate {hostname:string;status:"not_checked"|"dns_checked"|"content_checked"|"unavailable";evidenceIds:string[]}
+export interface LegalNorm {title?:Localized;documentId?:string;id:string;article:string;quote:string;evidenceId:string;sourceUrl:string;retrievedAt:string;temporalStatus:"requires_review"}
 export interface OsintReport {
   legalNorms?:LegalNorm[];
   registry?:{sourceDate:string;evidenceId:string;matches:{row:number;bin:string;organization:string;license:string;website:string;matchedBy:string[]}[]};
@@ -55,7 +55,7 @@ export function osintSummary(report:OsintReport,lang:'ru'|'kk'){
  return [
   (lang==='ru'?'Паспорт ресурса: ':'Ресурс паспорты: ')+(report.hostname||'—'),
   ...report.stages.map(s=>s.id+': '+s.status+' — '+s.summary[lang]),
-  ...(report.legalNorms||[]).map(n=>n.id+': '+n.quote+' ['+n.evidenceId+'] '+n.sourceUrl),
+  ...(report.legalNorms||[]).map(n=>(n.title?.[lang]||n.id)+' · '+n.article+' ['+n.evidenceId+'] '+n.sourceUrl),
   ...(report.relations||[]).map(r=>r.from+' → '+r.to+' ('+r.kind+') ['+r.evidenceIds.join(', ')+']'),
   ...(report.candidates||[]).map(c=>c.hostname+': '+c.status),
   ...displayObservations(report.observations,lang).map(o=>(osintLabels[o.kind]?.[lang]||o.kind)+': '+o.lines.join('; ')+' ['+o.sources.map(s=>s.evidenceId).join(', ')+']'),

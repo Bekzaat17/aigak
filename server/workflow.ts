@@ -1,3 +1,7 @@
+import {buildDossier} from '../shared/dossier.ts';
+import {ResourceInvestigator} from './osint/discovery.ts';
+import {LegalCorpusService} from './osint/legal-corpus.ts';
+import {syncQuestions} from './revisions.ts';
 import { OfficialSourcesService } from './osint/official.ts';
 import { DetectiveService } from './osint/detective.ts';
 import { createOsintFacade } from './osint/index.ts';
@@ -29,6 +33,7 @@ export function reviewFinding(store:Store,c:CaseRecord,id:string,decision:Decisi
 export function approveCase(store:Store,c:CaseRecord,officer:string,notes:string) {
   if(busyStatuses.includes(c.status)) throw new Error('CASE_BUSY');
   if(!officer.trim() || !c.findings.length || c.findings.some(f=>f.decision==='pending') || !c.findings.some(f=>f.decision==='accepted') || !notes.trim() || c.clarifications.some(q=>q.answer!=='yes')) throw new Error('REVIEW_INCOMPLETE');
+  if(c.materialsPending||c.followUps?.some(q=>!q.answer.trim())||(c.analysisLevel==='pro'&&!buildDossier(c).ready))throw new Error('REVIEW_INCOMPLETE');
   store.verify(c);c.officer=officer.trim();c.notes=notes.trim();c.reviewedAt=new Date().toISOString();c.status='verified';
   store.event(c,'case.reviewed',`${c.officer}: ${c.notes}`);
 }
@@ -46,21 +51,23 @@ export class Queue {
     const c=this.store.get(id);if(!c)return;
     try {
       c.status='collecting';c.step={ru:'Фиксация и извлечение текста',kk:'Тіркеу және мәтінді алу'};this.store.event(c,'collection.started');
-      if(c.sourceType==='url') await collectUrl(this.store,c);
-      else for(const e of [...c.evidence]) if(e.kind==='original') await extractFile(this.store,c,e);
+      if(c.sourceType==='url'&&!c.reanalysis) await collectUrl(this.store,c);
+      for(const e of [...c.evidence]) if(e.kind==='original'&&!c.evidence.some(child=>child.parentId===e.id)) await extractFile(this.store,c,e);
       c.step={ru:'Паспорт ресурса и публичные реквизиты',kk:'Ресурс паспорты және ашық деректемелер'};this.store.event(c,'osint.started');
-      const pageStage=await collectContactPages(this.store,c);
+      const pageStage=c.reanalysis?undefined:await collectContactPages(this.store,c);
       c.osint=await this.osint.inspect({url:c.sourceUrl,finalUrl:c.evidence.find(e=>e.method==='playwright-dom')?.sourceUrl||c.redirects.at(-1)?.url,evidence:[...c.evidence]},
         (artifact,collector)=>this.store.addEvidence(c,artifact.bytes,{name:artifact.name,mime:artifact.mime,kind:'metadata',method:'osint-'+collector,sourceUrl:artifact.sourceUrl}));
-      c.osint.stages.unshift(pageStage);
-      if(pageStage.status==='partial')c.osint.status='partial';
+      if(pageStage)c.osint.stages.unshift(pageStage);
+      if(pageStage?.status==='partial')c.osint.status='partial';
       if(c.analysisLevel==='pro'){
         c.step={ru:'Сверяем реестр и сохраняем нормы закона',kk:'Тізілімді салыстырып, заң нормаларын сақтаймыз'};this.store.event(c,'official.started');
         await this.official.enrich(c.osint,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
+        await new LegalCorpusService().enrich(c.osint,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
         c.step={ru:'Проверка технических связей',kk:'Техникалық байланыстарды тексеру'};
         this.store.event(c,'detective.started');
         const sources=c.evidence.map(e=>e.mime==='text/html'&&!e.method.startsWith('official-')?{...e,text:this.store.read(c,e).toString()}:e);
         await this.detective.investigate(c.osint,sources,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
+        await new ResourceInvestigator().investigate(c.osint,sources,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:a.text?'text':'metadata',text:a.text,method:collector,sourceUrl:a.sourceUrl}));
       }
       this.store.event(c,'osint.completed',c.osint.status);
       c.status='analyzing';c.step={ru:'Поиск признаков и проверка цитат',kk:'Белгілерді іздеу және дәйексөздерді тексеру'};this.store.event(c,'analysis.started');
@@ -71,6 +78,7 @@ export class Queue {
       });
       c.findings=result.findings;c.assessment=result.assessment;c.likelihood=result.likelihood;
       c.engine=result.engine;c.inspection=result.run;c.issues.push(...result.issues);
+      syncQuestions(c);c.reanalysis=false;c.materialsPending=false;
       c.status='review';c.completedAt=new Date().toISOString();c.step={ru:'Ожидает проверки офицером',kk:'Қызметкер тексеруін күтуде'};this.store.event(c,'analysis.completed',`${c.findings.length} indicators; ${c.engine}`);
     } catch(error) {
       c.status='failed';c.step={ru:'Не удалось завершить сбор',kk:'Жинауды аяқтау мүмкін болмады'};

@@ -29,6 +29,8 @@ export interface Evidence {
   parentId?: string; text?: string; method: string; sourceUrl?:string;
 }
 export interface Finding {
+  scope?:"target"|"related";
+  region?:{evidenceId:string;x:number;y:number;width:number;height:number;author:"inspector"};
   id: string; category: string; title: Localized; explanation: Localized;
   evidenceId: string; quote: string; start: number; end: number;
   rule?: {
@@ -39,7 +41,17 @@ export interface Finding {
   agentIds?: string[]; engine: 'rules' | 'ai'; decision: Decision; note?: string;
 }
 export interface AuditEvent { id: string; at: string; action: string; detail: string; previousHash: string; hash: string }
+export interface FollowUp {id:string;question:Localized;answer:string;evidenceIds:string[]}
+export interface CaseRevision {
+ sha256?:string;
+ legalReview?:CaseRecord['legalReview'];number:number;savedAt:string;analysisLevel:AnalysisLevel;status:Status;findings:Finding[];
+ inspection?:InspectionRun;osint?:OsintReport;assessment:Localized;likelihood:number|null;issues:Localized[];
+ followUps:FollowUp[];clarifications:CaseRecord['clarifications'];evidenceIds:string[];officer:string;notes:string;reviewedAt?:string;
+}
 export interface CaseRecord {
+ legalReview?:{eventDate:string;jurisdictionConfirmed:boolean;editionConfirmed:boolean;officer:string;note:string};
+ materialsPending?:boolean;followUps?:FollowUp[];revisions?:CaseRevision[];reanalysis?:boolean;
+
   id: string; number: string; title: string; sourceType: 'url' | 'file' | 'text'; sourceUrl?: string;
   createdAt: string; updatedAt: string; completedAt?: string; status: Status; step: Localized;
   analysisLevel: AnalysisLevel; inspection?: InspectionRun; osint?:OsintReport;

@@ -17,6 +17,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
     const input=JSON.stringify({
       sources:sources.map(e=>({id:e.id,text:e.text,sourceUrl:e.sourceUrl})),
       osint:options.osint,
+      inspectorStatements:{notice:'Untrusted inspector statements, not primary evidence. Verify against sources; never cite statements as observed facts.',responses:options.inspectorResponses||[]},
       candidates:options.candidates||[],
       previousStages:(options.previousStages||[]).map(s=>({id:s.id,status:s.status,summary:s.summary,observations:s.observations,review:s.review,legalHypotheses:s.legalHypotheses})),
     });
