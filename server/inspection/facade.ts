@@ -1,4 +1,5 @@
-import type { Finding, InspectionStage, Localized } from '../../shared/types.ts';
+import type { AiTask } from '../ai/contracts.ts';
+import type { AiAttempt, Finding, InspectionStage, Localized } from '../../shared/types.ts';
 import type { AiAnalyzer, InspectionInput, InspectionResult, ProgressObserver, CheckResult } from './contracts.ts';
 import { CheckRegistry } from './registry.ts';
 import { StrategyFactory } from './strategies.ts';
@@ -26,10 +27,11 @@ export class InspectionFacade {
     const startedAt=new Date().toISOString();const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(new Error('ANALYSIS_TIMEOUT')),strategy.timeoutMs);
     const stages:InspectionStage[]=[];const issues:Localized[]=[];let findings:Finding[]=[];
-    let likelihood:number|null=null;let assessment=rulesAssessment(0);let aiCalls=0;let successfulAi=0;
+    let likelihood:number|null=null;let assessment=rulesAssessment(0);let aiCalls=0;let successfulAi=0;let attempts=0;
     const hasText=input.evidence.some(e=>e.text?.trim());
     try {
       for(const check of checks){
+        const aiAttempts:AiAttempt[]=[];
         const start=Date.now();let result:CheckResult|undefined;let errorCode:string|undefined;
         try {
           if(controller.signal.aborted)throw new Error('ANALYSIS_TIMEOUT');
@@ -38,10 +40,10 @@ export class InspectionFacade {
           else {
             const context={
               evidence:structuredClone(input.evidence),findings:structuredClone(findings),links:[...input.links],signal:controller.signal,
-              analyze:async(focus:string)=>{
+              analyze:async(task:AiTask)=>{
                 if(!check.requiresAi||aiCalls>=strategy.maxAiCalls)throw new Error('AI_BUDGET_EXCEEDED');
                 controller.signal.throwIfAborted();aiCalls++;
-                return this.ai.analyze(structuredClone(input.evidence),{focus,signal:controller.signal});
+                return this.ai.analyze(structuredClone(input.evidence),{task,signal:controller.signal,candidates:structuredClone(findings),previousStages:structuredClone(stages),beforeAttempt:()=>{if(attempts>=strategy.maxAiCalls*4)throw new Error('AI_BUDGET_EXCEEDED');attempts++;},onAttempt:attempt=>aiAttempts.push(attempt)});
               },
             };
             // Enforce the run deadline even for custom providers that ignore cancellation.
@@ -65,7 +67,7 @@ export class InspectionFacade {
         } catch(e){errorCode=e instanceof Error&&/^[A-Z_]+$/.test(e.message)?e.message:'CHECK_FAILED';}
         const status=errorCode?'failed':result!.status;
         const summary=errorCode?{ru:`Этап не выполнен (${errorCode}). Остальные материалы сохранены.`,kk:`Кезең орындалмады (${errorCode}). Қалған материалдар сақталды.`}:result!.summary;
-        const stage:InspectionStage={id:check.id,version:check.version,name:check.name,status,startedAt:new Date(start).toISOString(),durationMs:Date.now()-start,summary,observations:status==='completed'?structuredClone(result?.findings||[]):[],findingIds:status==='completed'?(result?.findings||[]).map(f=>f.id):[],...(errorCode?{errorCode}:{})};
+        const stage:InspectionStage={aiAttempts,review:status==='completed'?result?.review:undefined,id:check.id,version:check.version,name:check.name,status,startedAt:new Date(start).toISOString(),durationMs:Date.now()-start,summary,observations:status==='completed'?structuredClone(result?.findings||[]):[],findingIds:status==='completed'?(result?.findings||[]).map(f=>f.id):[],...(errorCode?{errorCode}:{})};
         stages.push(stage);if(status!=='completed')issues.push({ru:`${check.name.ru}: ${summary.ru}`,kk:`${check.name.kk}: ${summary.kk}`});
         onStage(structuredClone(stage));
       }
@@ -74,6 +76,6 @@ export class InspectionFacade {
     // A partial run must not look like a confident, completed investigation.
     const partial=stages.some(s=>s.status!=='completed')||!hasText;
     if(partial)likelihood=null;
-    return {findings,assessment,likelihood,engine:successfulAi?'ai':'rules',issues,run:{level:strategy.level,version:'1.0.0',status:partial?'partial':'completed',startedAt,completedAt:new Date().toISOString(),aiCalls,stages}};
+    return {findings,assessment,likelihood,engine:successfulAi?'ai':'rules',issues,run:{level:strategy.level,version:'2.0.0',status:partial?'partial':'completed',startedAt,completedAt:new Date().toISOString(),aiCalls,aiAttempts:attempts,stages}};
   }
 }

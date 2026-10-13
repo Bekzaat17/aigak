@@ -1,0 +1,27 @@
+{
+  "profiles": {
+    "default": {
+      "adapter": "responses",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "model": "gpt-4.1-mini",
+      "timeoutMs": 45000,
+      "maxOutputTokens": 4500,
+      "retries": 0
+    },
+    "gateway": {
+      "adapter": "chat-completions",
+      "baseUrl": "http://127.0.0.1:4000/v1",
+      "apiKeyEnv": "LITELLM_API_KEY",
+      "model": "aigak-analyst",
+      "timeoutMs": 45000,
+      "maxOutputTokens": 4500,
+      "retries": 0
+    }
+  },
+  "routes": {
+    "context": ["default"],
+    "mechanics": ["default"],
+    "verification": ["default"]
+  }
+}

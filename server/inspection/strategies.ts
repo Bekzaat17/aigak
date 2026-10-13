@@ -5,12 +5,12 @@ export class BasicStrategy implements InspectionStrategy {
   readonly level='basic'; readonly checks=['rules','integrity']; readonly maxAiCalls=0; readonly timeoutMs=10000;
 }
 export class AdvancedStrategy implements InspectionStrategy {
-  readonly level='advanced'; readonly checks=['rules','context','integrity']; readonly maxAiCalls=1; readonly timeoutMs=70000;
+  readonly level='advanced'; readonly checks=['rules','context','mechanics','verification','integrity']; readonly maxAiCalls=3; readonly timeoutMs=210000;
 }
 export class ProStrategy implements InspectionStrategy {
   readonly level='pro';
-  readonly checks=['rules','mechanics','promotion','payments','context','connections','legal','integrity'];
-  readonly maxAiCalls=4; readonly timeoutMs=180000;
+  readonly checks=['rules','context','mechanics','verification','connections','legal','integrity'];
+  readonly maxAiCalls=3; readonly timeoutMs=210000;
 }
 /** Replace/register a whole strategy without changing callers or adding a switch to the queue. */
 export class StrategyFactory {

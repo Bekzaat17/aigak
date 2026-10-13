@@ -1,11 +1,21 @@
+export interface AiAttempt {
+  profile:string; adapter:string; requestedModel:string; actualModel?:string;
+  promptVersion:string; schemaVersion:string; startedAt:string; durationMs:number;
+  status:'completed'|'failed'; errorCode?:string; inputTokens?:number; outputTokens?:number;
+}
+export interface AiReview {
+  status:'indicators'|'ambiguous'|'insufficient'|'not_found';
+  uncertainties:Localized[]; questions:Localized[];
+  contradictions:{evidenceId:string;quote:string;explanation:Localized}[];
+}
 export type AnalysisLevel = 'basic' | 'advanced' | 'pro';
 export interface InspectionStage {
   id: string; version: string; name: Localized; status: 'completed' | 'skipped' | 'failed';
-  startedAt: string; durationMs: number; summary: Localized; findingIds: string[]; observations: Finding[]; errorCode?: string;
+  startedAt: string; durationMs: number; summary: Localized; findingIds: string[]; observations: Finding[]; errorCode?: string; aiAttempts?:AiAttempt[]; review?:AiReview;
 }
 export interface InspectionRun {
   level: AnalysisLevel; version: string; status: 'completed' | 'partial';
-  startedAt: string; completedAt: string; aiCalls: number; stages: InspectionStage[];
+  startedAt: string; completedAt: string; aiCalls: number; aiAttempts?:number; stages: InspectionStage[];
 }
 export type Lang = 'ru' | 'kk';
 export type Localized = { ru: string; kk: string };

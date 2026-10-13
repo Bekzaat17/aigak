@@ -1,16 +1,17 @@
-import type { AnalysisLevel, CaseRecord, Evidence, Finding, InspectionRun, InspectionStage, Localized } from '../../shared/types.ts';
+import type { AiTask } from '../ai/contracts.ts';
+import type { AiAttempt, AiReview, AnalysisLevel, CaseRecord, Evidence, Finding, InspectionRun, InspectionStage, Localized } from '../../shared/types.ts';
 
-export interface AiResult { findings: Finding[]; likelihood: number; assessment: Localized }
+export interface AiResult { findings: Finding[]; likelihood: number; assessment: Localized; review?:AiReview }
 export interface AiAnalyzer {
   readonly available: boolean;
-  analyze(evidence: Evidence[], options: {focus:string;signal:AbortSignal}): Promise<AiResult>;
+  analyze(evidence: Evidence[], options: {signal:AbortSignal;task:AiTask;candidates?:Finding[];previousStages?:InspectionStage[];beforeAttempt?:()=>void;onAttempt?:(attempt:AiAttempt)=>void}): Promise<AiResult>;
 }
 export interface CheckContext {
   readonly evidence: Evidence[];
   readonly findings: Finding[];
   readonly links: string[];
   readonly signal: AbortSignal;
-  analyze(focus:string): Promise<AiResult>;
+  analyze(task:AiTask): Promise<AiResult>;
 }
 export interface CheckResult {
   status: 'completed' | 'skipped';
@@ -20,6 +21,7 @@ export interface CheckResult {
   assessment?: Localized;
   likelihood?: number;
   replaceFindings?: boolean;
+  review?:AiReview;
 }
 export interface InspectionCheck {
   readonly id: string;

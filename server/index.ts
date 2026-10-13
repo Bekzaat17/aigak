@@ -1,3 +1,5 @@
+import { createInspectionFacade } from './inspection/index.ts';
+import { createAiAnalyzer } from './inspection/provider.ts';
 import express from 'express';
 import multer from 'multer';
 import { z } from 'zod';
@@ -15,7 +17,8 @@ import { Templates, fields } from './templates.ts';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const port=Number(process.env.PORT||4317);
 const store=new Store(path.resolve(process.env.DATA_DIR||path.join(root,'data')));
-const queue=new Queue(store);
+const aiAnalyzer=createAiAnalyzer();
+const queue=new Queue(store,createInspectionFacade(aiAnalyzer));
 const templates=new Templates(store);
 const app=express(); app.disable('x-powered-by');
 app.use((req,res,next)=>{
@@ -37,7 +40,7 @@ app.get('/api/templates',(_req,res)=>res.json({templates:templates.list(),fields
 app.get('/api/templates/:id',async(req,res)=>{const data=await templates.raw(req.params.id);res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');res.setHeader('Content-Disposition','attachment; filename="aigak-template.docx"');res.send(data);});
 app.post('/api/templates',upload.single('template'),(req,res)=>{if(!req.file)throw new Error('EMPTY_INPUT');res.status(201).json(templates.add(Buffer.from(req.file.originalname,'latin1').toString('utf8').replace(/[\x00-\x1f/\\]/g,'_'),req.file.buffer));});
 app.get('/api/analysis-levels',(_req,res)=>res.json(levels));
-app.get('/api/health',(_req,res)=>res.json({ok:true,version:'0.2.0',aiConfigured:!!process.env.OPENAI_API_KEY,localOnly:true}));
+app.get('/api/health',(_req,res)=>res.json({ok:true,version:'0.2.0',aiConfigured:aiAnalyzer.available,localOnly:true}));
 app.get('/api/cases',(_req,res)=>res.json(store.list()));
 app.post('/api/cases',upload.array('files',5),async(req,res)=>{
   if(queue.pending.length>=20) return void res.status(429).json({error:'QUEUE_FULL'});

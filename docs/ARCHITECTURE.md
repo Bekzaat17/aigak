@@ -11,7 +11,7 @@ flowchart TD
   Registry[CheckRegistry] --> Facade
   Facade --> Rules[Локальные проверки]
   Facade --> AI[Специалисты и контекст]
-  AI --> Adapter[AiAnalyzer / OpenAiAnalyzer]
+  AI --> Adapter[AiAnalyzer / GatewayAnalyzer]
   Facade --> Result[Выводы + наблюдения этапов + ограничения]
   Result --> Inspector[Проверка инспектором]
   Inspector --> Export[Шаблон DOCX + PDF/HTML + ZIP]
@@ -25,7 +25,7 @@ flowchart TD
 | Factory | StrategyFactory | Создание стратегии по выбранному уровню |
 | Registry + Factory | CheckRegistry | Регистрация конструкторов проверок; отдельный экземпляр на дело |
 | Facade | InspectionFacade | Единый вход, выполнение, проверка цитат, обработка ошибок и журнал |
-| Adapter | AiAnalyzer / OpenAiAnalyzer | Замена поставщика ИИ без изменений очереди и интерфейса |
+| Adapter | AiAnalyzer / GatewayAnalyzer | Замена поставщика ИИ без изменений очереди и интерфейса |
 | Dependency Injection | createInspectionFacade, Queue | Сборка зависимостей и тестирование без сети |
 
 Composition root — server/inspection/index.ts. Конкретные проверки известны ему,
@@ -34,9 +34,9 @@ Composition root — server/inspection/index.ts. Конкретные прове
 ## Режимы
 
 - Basic: rules → integrity. Ноль запросов к модели, без процента.
-- Advanced: rules → context → integrity. До одного запроса.
-- Pro: rules → mechanics → promotion → payments → context → connections → legal → integrity.
-  До четырёх запросов, общий срок 180 секунд.
+- Advanced: rules → context → mechanics → verification → integrity. Три логических AI-этапа.
+- Pro: rules → context → mechanics → verification → connections → legal → integrity.
+  Три логических AI-этапа, общий срок 210 секунд; внешние специалисты пока пропускаются.
 
 Узкие проверки анализируют один сохранённый набор материалов. Контекстная проверка получает
 их кандидатов и исходные свидетельства, ищет альтернативные объяснения и формирует итоговый
@@ -57,7 +57,7 @@ Connections и Legal пока возвращают skipped. Они не дела
 4. Проверить на тестовых материалах: цитаты, ложные срабатывания, отсутствие данных, ошибка провайдера.
 
 Метод execute получает копии материалов и предыдущих находок, ссылки и AbortSignal.
-Для модели использовать context.analyze(focus): фасад учитывает бюджет. Внешние запросы
+Для модели использовать context.analyze(task): фасад учитывает бюджет. Внешние запросы
 будущих адаптеров должны уважать AbortSignal, ограничения SSRF и сохранять полученные
 источники как новые материалы с происхождением. Сейчас эти возможности не реализованы.
 Таймаут фасада прекращает ожидание даже адаптера, игнорирующего отмену;
@@ -127,3 +127,8 @@ flowchart LR
 Сбой PDF сохраняет HTML/DOCX и предупреждение в архиве. Ошибка контрольных сумм,
 недостающий файл, неизвестный layout или несвязанная цитата останавливают сборку.
 Пакет остаётся проектом независимо от внутреннего подтверждения инспектором.
+
+## AI Gateway (итерация 4)
+
+Новая цепочка Advanced, профили и протоколы описаны в [AI_GATEWAY.md](AI_GATEWAY.md).
+Базовые проверки и сервис пакета не зависят от API провайдера.
