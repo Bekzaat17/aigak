@@ -1,3 +1,4 @@
+import { levelName } from '../shared/inspection.ts';
 import JSZip from 'jszip';
 import { chromium } from 'playwright';
 import type { CaseRecord, Lang } from '../shared/types.ts';
@@ -15,6 +16,7 @@ export function reportHtml(c:CaseRecord,lang:Lang) {
   <h1>${t('Материалы проверки','Тексеру материалдары')}</h1><h3>${escape(c.title)}</h3>
   <p>${t('Источник','Дереккөз')}: ${escape(c.sourceUrl||t('Загруженный материал; URL не установлен','Жүктелген материал; URL анықталмаған'))}<br>${t('Получено','Алынған уақыты')}: ${escape(c.createdAt)} (UTC)<br>${t('Метод анализа','Талдау әдісі')}: ${c.engine==='ai'?'AI':'Rules / v1'}<br>${t('Внутренняя проверка','Ішкі тексеру')}: ${c.status==='verified'?t('выполнена','орындалды'):t('не завершена','аяқталмады')}<br>${t('Офицер','Қызметкер')}: ${escape(c.officer||'________________')}</p>
   <p>${escape(c.assessment[lang])}</p><p>${t('Предварительная оценка AI','AI алдын ала бағасы')}: ${c.likelihood===null?t('не рассчитана','есептелмеген'):c.likelihood+'% · '+t('не откалибрована','калибрленбеген')}</p>
+  ${c.inspection?`<h2>${t('Ход анализа','Талдау барысы')} · ${escape(levelName(c.analysisLevel)[lang])}</h2><p>${c.inspection.status==='partial'?t('Частичная проверка','Ішінара тексеру'):t('Проверки завершены','Тексерулер аяқталды')}</p>${c.inspection.stages.map(s=>`<h3>${escape(s.name[lang])}</h3><p>${escape(s.status)} · v${escape(s.version)} · ${s.durationMs} ms</p><p>${escape(s.summary[lang])}</p>`).join('')}`:''}
   <h2>${t('1. Наблюдения и проверка','1. Бақылаулар және тексеру')}</h2>
   ${c.findings.length?c.findings.map((f,i)=>`<div class="finding"><h3>${i+1}. ${escape(f.title[lang])}</h3><p>${escape(decision(f.decision))} · ${escape(f.engine)}</p><blockquote>${escape(f.quote)}</blockquote><p>${escape(f.explanation[lang])}</p><p>${t('Комментарий инспектора','Инспектор түсініктемесі')}: ${escape(f.note||'—')}</p><p class="muted">${t('Материал','Материал')}: ${escape(f.evidenceId)} · ${t('Символы','Таңбалар')} [${f.start}, ${f.end})</p></div>`).join(''):`<p>${t('Подтверждённых признаков нет. Это не подтверждение законности ресурса.','Расталған белгілер жоқ. Бұл ресурстың заңдылығын растамайды.')}</p>`}
   <h2>${t('2. Опись материалов','2. Материалдар тізімдемесі')}</h2><table><thead><tr><th>${t('Материал / метод','Материал / әдіс')}</th><th>SHA-256 / ${t('размер','көлем')}</th></tr></thead><tbody>${c.evidence.map(e=>`<tr><td>${escape(e.name)}<br><code>${escape(e.id)}</code><br>${escape(e.method)}<br>${escape(e.createdAt)}</td><td><code>${e.sha256}</code><br>${e.size} bytes</td></tr>`).join('')}</tbody></table>
@@ -30,6 +32,7 @@ export async function exportCase(store:Store,c:CaseRecord,includePdf=true) {
   const add=(name:string,data:Buffer|string)=>{const b=Buffer.isBuffer(data)?data:Buffer.from(data);zip.file(name,b);manifest.push({path:name,sha256:sha256(b),size:b.length});};
   for(const e of c.evidence) add(`evidence/${e.storedName}`,store.read(c,e));
   add('case.json',JSON.stringify(c,null,2));add('audit.json',JSON.stringify(c.audit,null,2));
+  if(c.inspection)add('inspection.json',JSON.stringify(c.inspection,null,2));
   const templates=new Templates(store);
   for(const lang of ['ru','kk'] as const) add(`document-${lang}.docx`,await templates.render(c,lang));
   add('template-source.docx',await templates.raw(c.templateId));

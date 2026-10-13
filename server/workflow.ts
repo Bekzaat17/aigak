@@ -3,11 +3,14 @@ import type { CaseRecord, Decision } from '../shared/types.ts';
 import { busyStatuses } from '../shared/types.ts';
 import { Store } from './store.ts';
 import { collectUrl, extractFile } from './collector.ts';
-import { analyzeRules, analyzeAi } from './analysis.ts';
+import { createInspectionFacade } from './inspection/index.ts';
+import type { InspectionFacade } from './inspection/facade.ts';
+import type { AnalysisLevel } from '../shared/types.ts';
 
-export function newCase(store:Store,input:{title:string;sourceType:CaseRecord['sourceType'];sourceUrl?:string;useAi:boolean;demo?:boolean;templateId?:string}):CaseRecord {
+export function newCase(store:Store,input:{title:string;sourceType:CaseRecord['sourceType'];sourceUrl?:string;useAi:boolean;analysisLevel?:AnalysisLevel;demo?:boolean;templateId?:string}):CaseRecord {
   const now=new Date().toISOString();
-  const c:CaseRecord={...input,templateId:input.templateId||'builtin',clarifications:[],likelihood:null,assessment:{ru:'',kk:''},demo:!!input.demo,id:randomUUID(),number:`AG-${new Date().getFullYear()}-${String(store.all().length+1).padStart(4,'0')}`,createdAt:now,updatedAt:now,status:'queued',step:{ru:'В очереди',kk:'Кезекте'},engine:'rules',evidence:[],findings:[],issues:[],links:[],redirects:[],officer:'',notes:'',audit:[]};
+  const c:CaseRecord={...input,analysisLevel:input.analysisLevel||(input.useAi?'advanced':'basic'),templateId:input.templateId||'builtin',clarifications:[],likelihood:null,assessment:{ru:'',kk:''},demo:!!input.demo,id:randomUUID(),number:`AG-${new Date().getFullYear()}-${String(store.all().length+1).padStart(4,'0')}`,createdAt:now,updatedAt:now,status:'queued',step:{ru:'В очереди',kk:'Кезекте'},engine:'rules',evidence:[],findings:[],issues:[],links:[],redirects:[],officer:'',notes:'',audit:[]};
+  c.useAi=c.analysisLevel!=='basic';
   c.clarifications=[{id:'source',question:{ru:'Происхождение материала и его связь с проверяемым ресурсом подтверждены?',kk:'Материалдың шығу тегі мен тексерілетін ресурсқа қатысы расталды ма?'},answer:'',note:''},{id:'context',question:{ru:'Это предложение или реклама азартной игры, а не новость, критика или учебный пример?',kk:'Бұл жаңалық, сын немесе оқу мысалы емес, құмар ойын ұсынысы не жарнамасы ма?'},answer:'',note:''}];
   c.likelihood=null;c.assessment={ru:'Оценка будет сформирована после анализа.',kk:'Баға талдаудан кейін қалыптасады.'};
   store.event(c,'case.created',input.demo?'synthetic demo':'local intake');return c;
@@ -26,7 +29,7 @@ export function approveCase(store:Store,c:CaseRecord,officer:string,notes:string
 }
 export class Queue {
   pending:string[]=[];running=false;
-  constructor(private store:Store) {
+  constructor(private store:Store,private inspector:InspectionFacade=createInspectionFacade()) {
     for(const c of store.all()) if(busyStatuses.includes(c.status)) {c.status='failed';c.step={ru:'Обработка прервана перезапуском',kk:'Өңдеу қайта іске қосу кезінде үзілді'};c.issues.push(c.step);store.event(c,'processing.interrupted');}
   }
   add(id:string) {this.pending.push(id);void this.drain();}
@@ -41,15 +44,12 @@ export class Queue {
       if(c.sourceType==='url') await collectUrl(this.store,c);
       else for(const e of [...c.evidence]) if(e.kind==='original') await extractFile(this.store,c,e);
       c.status='analyzing';c.step={ru:'Поиск признаков и проверка цитат',kk:'Белгілерді іздеу және дәйексөздерді тексеру'};this.store.event(c,'analysis.started');
-      c.findings=analyzeRules(c.evidence);
-      c.assessment=c.findings.length?{ru:'Найдены текстовые признаки, связанные с азартными играми. Проверьте цитаты и контекст: это могут быть реклама, новость или учебный материал.',kk:'Құмар ойындарға қатысты мәтіндік белгілер табылды. Дәйексөздер мен мәнмәтінді тексеріңіз: бұл жарнама, жаңалық немесе оқу материалы болуы мүмкін.'}:{ru:'Текстовые признаки не найдены. Это не подтверждает отсутствие игорного предложения: проверьте полноту материалов.',kk:'Мәтіндік белгілер табылмады. Бұл ойын ұсынысының жоқтығын растамайды: материалдардың толықтығын тексеріңіз.'};
-      if(c.useAi && c.evidence.some(e=>e.text)) {
-        if(process.env.OPENAI_API_KEY) {
-          try {const result=await analyzeAi(c.evidence);c.findings=result.findings;c.likelihood=result.likelihood;c.assessment=result.assessment;c.engine='ai';this.store.event(c,'analysis.ai.completed',process.env.OPENAI_MODEL||'gpt-4.1-mini');}
-          catch {c.issues.push({ru:'AI-анализ не выполнен или цитаты не прошли проверку. Показаны результаты локальных правил.',kk:'AI талдауы орындалмады немесе дәйексөздер тексеруден өтпеді. Жергілікті ережелер нәтижелері көрсетілді.'});}
-        } else c.issues.push({ru:'AI-ключ не настроен. Использованы локальные правила.',kk:'AI кілті бапталмаған. Жергілікті ережелер қолданылды.'});
-      }
-      if(!c.evidence.some(e=>e.text)) c.issues.push({ru:'Недостаточно извлечённого текста для анализа. Отсутствие признаков не означает отсутствие нарушения.',kk:'Талдау үшін алынған мәтін жеткіліксіз. Белгілердің болмауы заң бұзушылық жоқ дегенді білдірмейді.'});
+      const result=await this.inspector.inspect(c,stage=>{
+        c.step=stage.name;
+        this.store.event(c,'inspection.stage',`${stage.id}@${stage.version}: ${stage.status}`);
+      });
+      c.findings=result.findings;c.assessment=result.assessment;c.likelihood=result.likelihood;
+      c.engine=result.engine;c.inspection=result.run;c.issues.push(...result.issues);
       c.status='review';c.completedAt=new Date().toISOString();c.step={ru:'Ожидает проверки офицером',kk:'Қызметкер тексеруін күтуде'};this.store.event(c,'analysis.completed',`${c.findings.length} indicators; ${c.engine}`);
     } catch(error) {
       c.status='failed';c.step={ru:'Не удалось завершить сбор',kk:'Жинауды аяқтау мүмкін болмады'};

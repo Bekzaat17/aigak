@@ -5,6 +5,11 @@ import path from 'node:path';
 import type { CaseRecord, CaseSummary, Evidence } from '../shared/types.ts';
 
 export const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
+export function hydrateCase(body:string):CaseRecord {
+  const c=JSON.parse(body) as CaseRecord;
+  c.analysisLevel ??= c.useAi ? 'advanced' : 'basic';
+  return c;
+}
 export class Store {
   db: DatabaseSync;
   constructor(public dir: string) {
@@ -12,9 +17,9 @@ export class Store {
     this.db = new DatabaseSync(path.join(dir, 'aigak.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS cases (id TEXT PRIMARY KEY, body TEXT NOT NULL);');
   }
-  all(): CaseRecord[] { return (this.db.prepare('SELECT body FROM cases ORDER BY rowid DESC').all() as { body: string }[]).map(x => JSON.parse(x.body)); }
+  all(): CaseRecord[] { return (this.db.prepare('SELECT body FROM cases ORDER BY rowid DESC').all() as { body: string }[]).map(x => hydrateCase(x.body)); }
   list(): CaseSummary[] { return this.all().map(({ evidence, findings, audit, ...c }) => ({ ...c, evidenceCount: evidence.length, findingCount: findings.length, acceptedCount: findings.filter(f => f.decision === 'accepted').length })); }
-  get(id: string): CaseRecord | undefined { const row = this.db.prepare('SELECT body FROM cases WHERE id=?').get(id) as {body:string} | undefined; return row && JSON.parse(row.body); }
+  get(id: string): CaseRecord | undefined { const row = this.db.prepare('SELECT body FROM cases WHERE id=?').get(id) as {body:string} | undefined; return row && hydrateCase(row.body); }
   save(c: CaseRecord) { c.updatedAt = new Date().toISOString(); this.db.prepare('INSERT INTO cases(id,body) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body').run(c.id, JSON.stringify(c)); }
   event(c: CaseRecord, action: string, detail = '') {
     const e = { id: randomUUID(), at: new Date().toISOString(), action, detail, previousHash: c.audit.at(-1)?.hash || '0'.repeat(64) };

@@ -1,3 +1,12 @@
+export type AnalysisLevel = 'basic' | 'advanced' | 'pro';
+export interface InspectionStage {
+  id: string; version: string; name: Localized; status: 'completed' | 'skipped' | 'failed';
+  startedAt: string; durationMs: number; summary: Localized; findingIds: string[]; observations: Finding[]; errorCode?: string;
+}
+export interface InspectionRun {
+  level: AnalysisLevel; version: string; status: 'completed' | 'partial';
+  startedAt: string; completedAt: string; aiCalls: number; stages: InspectionStage[];
+}
 export type Lang = 'ru' | 'kk';
 export type Localized = { ru: string; kk: string };
 export type Status = 'queued' | 'collecting' | 'analyzing' | 'review' | 'verified' | 'failed';
@@ -10,12 +19,13 @@ export interface Evidence {
 export interface Finding {
   id: string; category: string; title: Localized; explanation: Localized;
   evidenceId: string; quote: string; start: number; end: number;
-  engine: 'rules' | 'ai'; decision: Decision; note?: string;
+  agentIds?: string[]; engine: 'rules' | 'ai'; decision: Decision; note?: string;
 }
 export interface AuditEvent { id: string; at: string; action: string; detail: string; previousHash: string; hash: string }
 export interface CaseRecord {
   id: string; number: string; title: string; sourceType: 'url' | 'file' | 'text'; sourceUrl?: string;
   createdAt: string; updatedAt: string; completedAt?: string; status: Status; step: Localized;
+  analysisLevel: AnalysisLevel; inspection?: InspectionRun;
   demo: boolean; useAi: boolean; engine: 'rules' | 'ai'; evidence: Evidence[]; findings: Finding[];
   issues: Localized[]; links: string[]; redirects: { url: string; status: number }[];
   officer: string; notes: string; reviewedAt?: string; audit: AuditEvent[];

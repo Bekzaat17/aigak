@@ -9,6 +9,7 @@ import { detectMime } from './collector.ts';
 import { parsePublicUrl } from './network.ts';
 import { exportCase } from './export.ts';
 import { busyStatuses } from '../shared/types.ts';
+import { levels } from '../shared/inspection.ts';
 import { Templates, fields } from './templates.ts';
 
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -31,11 +32,12 @@ app.use((req,res,next)=>{
 });
 app.use(express.json({limit:'300kb'}));
 const upload=multer({storage:multer.memoryStorage(),limits:{files:5,fileSize:10*1024*1024,fields:8,fieldSize:200000}});
-const intake=z.object({title:z.string().trim().min(1).max(160),sourceType:z.enum(['url','file','text']),sourceUrl:z.string().max(2048).optional(),text:z.string().max(180000).optional(),useAi:z.enum(['true','false']).default('false'),templateId:z.string().default('builtin')});
+const intake=z.object({title:z.string().trim().min(1).max(160),sourceType:z.enum(['url','file','text']),sourceUrl:z.string().max(2048).optional(),text:z.string().max(180000).optional(),useAi:z.enum(['true','false']).default('false'),analysisLevel:z.enum(['basic','advanced','pro']).optional(),templateId:z.string().default('builtin')});
 app.get('/api/templates',(_req,res)=>res.json({templates:templates.list(),fields}));
 app.get('/api/templates/:id',async(req,res)=>{const data=await templates.raw(req.params.id);res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');res.setHeader('Content-Disposition','attachment; filename="aigak-template.docx"');res.send(data);});
 app.post('/api/templates',upload.single('template'),(req,res)=>{if(!req.file)throw new Error('EMPTY_INPUT');res.status(201).json(templates.add(Buffer.from(req.file.originalname,'latin1').toString('utf8').replace(/[\x00-\x1f/\\]/g,'_'),req.file.buffer));});
-app.get('/api/health',(_req,res)=>res.json({ok:true,version:'0.1.0',aiConfigured:!!process.env.OPENAI_API_KEY,localOnly:true}));
+app.get('/api/analysis-levels',(_req,res)=>res.json(levels));
+app.get('/api/health',(_req,res)=>res.json({ok:true,version:'0.2.0',aiConfigured:!!process.env.OPENAI_API_KEY,localOnly:true}));
 app.get('/api/cases',(_req,res)=>res.json(store.list()));
 app.post('/api/cases',upload.array('files',5),async(req,res)=>{
   if(queue.pending.length>=20) return void res.status(429).json({error:'QUEUE_FULL'});
@@ -44,7 +46,7 @@ app.post('/api/cases',upload.array('files',5),async(req,res)=>{
   if(input.sourceType==='url') parsePublicUrl(input.sourceUrl||'');
   if(input.sourceType==='text'&&!input.text?.trim()) throw new Error('EMPTY_INPUT');
   if(input.sourceType==='file'&&!files.length) throw new Error('EMPTY_INPUT');
-  const c=newCase(store,{title:input.title,sourceType:input.sourceType,sourceUrl:input.sourceType==='url'?input.sourceUrl:undefined,useAi:input.useAi==='true',templateId:input.templateId});
+  const c=newCase(store,{title:input.title,sourceType:input.sourceType,sourceUrl:input.sourceType==='url'?input.sourceUrl:undefined,useAi:(input.analysisLevel ? input.analysisLevel!=='basic' : input.useAi==='true'),analysisLevel:input.analysisLevel,templateId:input.templateId});
   if(input.sourceType==='text') store.addEvidence(c,Buffer.from(input.text!),{name:'submitted-text.txt',mime:'text/plain',kind:'original',method:'user-submitted-text'});
   if(input.sourceType==='file') for(const file of files) {
     const name=Buffer.from(file.originalname,'latin1').toString('utf8').replace(/[\x00-\x1f/\\]/g,'_').slice(0,160)||'file';
