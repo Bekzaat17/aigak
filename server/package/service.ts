@@ -33,6 +33,14 @@ export class EvidencePackageService {
       const e=c.evidence.find(e=>e.id===f.evidenceId);
       if(!e?.text||!f.quote||!Number.isInteger(f.start)||!Number.isInteger(f.end)||f.start<0||f.end<=f.start||e.text.slice(f.start,f.end)!==f.quote)throw new Error('UNGROUNDED_FINDING');
     }
+    if(c.osint){
+      const references=[...(c.osint.legalNorms||[]).map(n=>n.evidenceId),...(c.osint.registry?[c.osint.registry.evidenceId]:[]),...c.osint.observations.map(o=>o.evidenceId),...c.osint.stages.flatMap(s=>s.evidenceIds),...(c.osint.relations||[]).flatMap(r=>r.evidenceIds),...(c.osint.candidates||[]).flatMap(candidate=>candidate.evidenceIds)];
+      if(references.some(id=>!evidence.has(id)))throw new Error('OSINT_PROVENANCE_MISSING');
+    }
+    for(const stage of c.inspection?.stages||[])for(const h of stage.legalHypotheses||[]){
+      const allFindings=[...c.findings,...(c.inspection?.stages||[]).flatMap(s=>s.observations)];
+      if(!c.osint?.legalNorms?.some(n=>n.id===h.normId&&n.quote.includes(h.normQuote))||h.findingIds.some(id=>!allFindings.some(f=>f.id===id)))throw new Error('UNGROUNDED_LEGAL_HYPOTHESIS');
+    }
     // Structure both formats consistently; rejected observations remain visible.
     const order={accepted:0,pending:1,rejected:2};
     c.findings.sort((a,b)=>order[a.decision]-order[b.decision]);
@@ -45,6 +53,7 @@ export class EvidencePackageService {
     for(const e of c.evidence)add('evidence/'+e.storedName,evidence.get(e.id)!);
     add('case.json',JSON.stringify(c,null,2));
     add('audit.json',JSON.stringify(c.audit,null,2));
+    if(c.osint)add('osint.json',JSON.stringify(c.osint,null,2));
     if(c.inspection)add('inspection.json',JSON.stringify(c.inspection,null,2));
     const reports=[];
     for(const lang of ['ru','kk'] as const){

@@ -25,7 +25,7 @@ export class Store {
     const e = { id: randomUUID(), at: new Date().toISOString(), action, detail, previousHash: c.audit.at(-1)?.hash || '0'.repeat(64) };
     c.audit.push({ ...e, hash: sha256(JSON.stringify(e)) }); this.save(c);
   }
-  addEvidence(c: CaseRecord, data: Buffer, input: Pick<Evidence, 'name' | 'mime' | 'kind' | 'method'> & Partial<Pick<Evidence, 'parentId' | 'text'>>) {
+  addEvidence(c: CaseRecord, data: Buffer, input: Pick<Evidence, 'name' | 'mime' | 'kind' | 'method'> & Partial<Pick<Evidence, 'parentId' | 'text' | 'sourceUrl'>>) {
     const id = randomUUID();
     const storedName = `${id}${path.extname(input.name).replace(/[^a-zA-Z0-9.]/g, '').slice(0, 10)}`;
     const folder = path.join(this.dir, 'evidence', c.id); mkdirSync(folder, { recursive: true, mode: 0o700 });

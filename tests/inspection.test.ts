@@ -27,7 +27,7 @@ test('advanced context can remove false positives while preserving rule observat
 test('pro executes advanced checks and explicitly skips unconnected legal and external checks',async()=>{
  let calls=0;
  const result=await createInspectionFacade({available:true,async analyze(){calls++;return {findings:analyzeRules([evidence]),assessment,likelihood:90};}}).inspect({...input,analysisLevel:'pro'});
- assert.equal(calls,3);assert.equal(result.run.stages.length,7);assert.equal(result.run.status,'partial');assert.equal(result.likelihood,null);
+ assert.equal(calls,4);assert.equal(result.run.stages.length,8);assert.equal(result.run.status,'partial');assert.equal(result.likelihood,null);
  assert.deepEqual(result.run.stages.filter(s=>s.status==='skipped').map(s=>s.id),['connections','legal']);
 });
 test('ungrounded AI findings are rejected without losing prior evidence',async()=>{

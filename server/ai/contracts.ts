@@ -1,6 +1,6 @@
 import type { AiAttempt } from '../../shared/types.ts';
 
-export type AiTask = 'context' | 'mechanics' | 'verification';
+export type AiTask = 'context' | 'mechanics' | 'verification' | 'legal' | 'pro_review';
 export interface ModelProfile {
   adapter:'responses'|'chat-completions';
   baseUrl:string;

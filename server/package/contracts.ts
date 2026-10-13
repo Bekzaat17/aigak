@@ -1,3 +1,4 @@
+import type {OsintReport} from '../../shared/osint.ts';
 import type { AnalysisLevel, AuditEvent, Evidence, Finding, InspectionRun, Lang, Localized } from '../../shared/types.ts';
 
 /** Versioned hand-off from any analysis workflow. No queue, storage or AI dependency. */
@@ -6,7 +7,7 @@ export interface PackageDocument {
   id:string; number:string; title:string; sourceUrl?:string; createdAt:string;
   status:'draft'|'verified'; demo:boolean; officer:string; notes:string;
   analysisLevel:AnalysisLevel; engine:'rules'|'ai'; assessment:Localized; likelihood:number|null;
-  evidence:Evidence[]; findings:Finding[]; issues:Localized[]; inspection?:InspectionRun;
+  evidence:Evidence[]; findings:Finding[]; issues:Localized[]; inspection?:InspectionRun; osint?:OsintReport;
   audit:AuditEvent[];
   clarifications:{id:string;question:Localized;answer:'yes'|'no'|'unknown'|'';note:string}[];
   links:string[]; redirects:{url:string;status:number}[];

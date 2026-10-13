@@ -35,8 +35,8 @@ Composition root — server/inspection/index.ts. Конкретные прове
 
 - Basic: rules → integrity. Ноль запросов к модели, без процента.
 - Advanced: rules → context → mechanics → verification → integrity. Три логических AI-этапа.
-- Pro: rules → context → mechanics → verification → connections → legal → integrity.
-  Три логических AI-этапа, общий срок 210 секунд; внешние специалисты пока пропускаются.
+- Pro: rules → context → mechanics → verification → connections → legal → pro_review → integrity.
+  До пяти логических AI-этапов, срок анализа 330 секунд.
 
 Узкие проверки анализируют один сохранённый набор материалов. Контекстная проверка получает
 их кандидатов и исходные свидетельства, ищет альтернативные объяснения и формирует итоговый
@@ -44,8 +44,7 @@ Composition root — server/inspection/index.ts. Конкретные прове
 Итог не является голосованием или средним арифметическим вероятностей агентов.
 Все выбранные цитаты проверяются по точному диапазону исходного текста.
 
-Connections и Legal пока возвращают skipped. Они не делают внешних запросов и не выдают
-правовую квалификацию. Pro на этом этапе всегда partial. Любой пропуск/сбой убирает
+Сборщики OSINT, DetectiveService и OfficialSourcesService работают до анализа. Connections отражает ограниченные технические связи, Legal выдаёт проверяемые правовые гипотезы по отдельной схеме. Pro на этом этапе всегда partial. Любой пропуск/сбой убирает
 итоговый процент. Остальные результаты доступны инспектору и для экспорта проекта.
 
 ## Добавить проверку
@@ -132,3 +131,7 @@ flowchart LR
 
 Новая цепочка Advanced, профили и протоколы описаны в [AI_GATEWAY.md](AI_GATEWAY.md).
 Базовые проверки и сервис пакета не зависят от API провайдера.
+
+## OSINT и Pro, итерация 5
+
+Сетевые протоколы отделены от оркестрации: DomainCollector → OsintFacade; сохранение через SaveArtifact. DetectiveService принимает порт DNS, OfficialSourcesService — порт HTTP. Workflow связывает их с Store. AI Gateway получает готовый паспорт; package service получает готовый результат. Сборщики не вызывают ИИ, рендереры не собирают источники. [Статус и лимиты](PRO_OSINT.md).

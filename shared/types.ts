@@ -1,8 +1,10 @@
+import type {OsintReport} from './osint.ts';
 export interface AiAttempt {
   profile:string; adapter:string; requestedModel:string; actualModel?:string;
   promptVersion:string; schemaVersion:string; startedAt:string; durationMs:number;
   status:'completed'|'failed'; errorCode?:string; inputTokens?:number; outputTokens?:number;
 }
+export interface LegalHypothesis {normId:string;normQuote:string;findingIds:string[];reason:Localized;missing:Localized[]}
 export interface AiReview {
   status:'indicators'|'ambiguous'|'insufficient'|'not_found';
   uncertainties:Localized[]; questions:Localized[];
@@ -10,8 +12,8 @@ export interface AiReview {
 }
 export type AnalysisLevel = 'basic' | 'advanced' | 'pro';
 export interface InspectionStage {
-  id: string; version: string; name: Localized; status: 'completed' | 'skipped' | 'failed';
-  startedAt: string; durationMs: number; summary: Localized; findingIds: string[]; observations: Finding[]; errorCode?: string; aiAttempts?:AiAttempt[]; review?:AiReview;
+  id: string; version: string; name: Localized; status: 'completed' | 'partial' | 'skipped' | 'failed';
+  startedAt: string; durationMs: number; summary: Localized; findingIds: string[]; observations: Finding[]; errorCode?: string; aiAttempts?:AiAttempt[]; review?:AiReview; legalHypotheses?:LegalHypothesis[];
 }
 export interface InspectionRun {
   level: AnalysisLevel; version: string; status: 'completed' | 'partial';
@@ -24,7 +26,7 @@ export type Decision = 'pending' | 'accepted' | 'rejected';
 export interface Evidence {
   id: string; name: string; storedName: string; mime: string; size: number; sha256: string;
   createdAt: string; kind: 'original' | 'snapshot' | 'text' | 'metadata';
-  parentId?: string; text?: string; method: string;
+  parentId?: string; text?: string; method: string; sourceUrl?:string;
 }
 export interface Finding {
   id: string; category: string; title: Localized; explanation: Localized;
@@ -40,7 +42,7 @@ export interface AuditEvent { id: string; at: string; action: string; detail: st
 export interface CaseRecord {
   id: string; number: string; title: string; sourceType: 'url' | 'file' | 'text'; sourceUrl?: string;
   createdAt: string; updatedAt: string; completedAt?: string; status: Status; step: Localized;
-  analysisLevel: AnalysisLevel; inspection?: InspectionRun;
+  analysisLevel: AnalysisLevel; inspection?: InspectionRun; osint?:OsintReport;
   demo: boolean; useAi: boolean; engine: 'rules' | 'ai'; evidence: Evidence[]; findings: Finding[];
   issues: Localized[]; links: string[]; redirects: { url: string; status: number }[];
   officer: string; notes: string; reviewedAt?: string; audit: AuditEvent[];

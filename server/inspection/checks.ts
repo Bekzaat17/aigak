@@ -26,20 +26,20 @@ export class RulesCheck implements InspectionCheck {
 }
 export class AdvancedCheck implements InspectionCheck {
   readonly version='2.0.0';readonly requiresAi=true;
-  constructor(readonly id:'context'|'mechanics'|'verification',readonly name:Localized){}
+  constructor(readonly id:'context'|'mechanics'|'verification'|'pro_review',readonly name:Localized){}
   async execute(ctx:CheckContext):Promise<CheckResult>{
     const result=await ctx.analyze(this.id);
     return {status:'completed',findings:result.findings,summary:result.assessment,review:result.review,
-      ...(this.id==='verification'?{assessment:result.assessment,...(result.review&&['ambiguous','insufficient'].includes(result.review.status)?{}:{likelihood:result.likelihood}),replaceFindings:true}:{})};
+      ...(['verification','pro_review'].includes(this.id)?{assessment:result.assessment,...(result.review&&['ambiguous','insufficient'].includes(result.review.status)?{}:{likelihood:result.likelihood}),replaceFindings:true}:{})};
   }
 }
 export class ConnectionsCheck implements InspectionCheck {
-  readonly id='connections';readonly version='1.0.0';readonly name={ru:'Связи и внешние источники',kk:'Байланыстар және сыртқы дереккөздер'};readonly requiresAi=false;
-  async execute(ctx:CheckContext):Promise<CheckResult>{return {status:'skipped',summary:{ru:`В материале ${ctx.links.length} ссылок для проверки. Внешний поисковый провайдер не подключён; связи и владельцы не установлены.`,kk:`Материалда тексеруге арналған ${ctx.links.length} сілтеме бар. Сыртқы іздеу провайдері қосылмаған; байланыстар мен иелер анықталмаған.`}};}
+  readonly id='connections';readonly version='2.0.0';readonly name={ru:'Связи и внешние источники',kk:'Байланыстар және сыртқы дереккөздер'};readonly requiresAi=false;
+  async execute(ctx:CheckContext):Promise<CheckResult>{const stage=ctx.osint?.stages.find(s=>s.id==='detective');if(stage)return {status:'partial',summary:stage.summary};return {status:'skipped',summary:{ru:`В материале ${ctx.links.length} ссылок для проверки. Внешний поисковый провайдер не подключён; связи и владельцы не установлены.`,kk:`Материалда тексеруге арналған ${ctx.links.length} сілтеме бар. Сыртқы іздеу провайдері қосылмаған; байланыстар мен иелер анықталмаған.`}};}
 }
 export class LegalCheck implements InspectionCheck {
-  readonly id='legal';readonly version='1.0.0';readonly name={ru:'Правовая квалификация',kk:'Құқықтық саралау'};readonly requiresAi=false;
-  async execute():Promise<CheckResult>{return {status:'skipped',summary:{ru:'Проверенный корпус законодательства Казахстана не подключён. Статьи и квалификация не определены; требуется юридическая проверка.',kk:'Қазақстан заңнамасының тексерілген корпусы қосылмаған. Баптар мен саралау анықталмаған; құқықтық тексеру қажет.'}};}
+  readonly id='legal';readonly version='2.0.0';readonly name={ru:'Правовые гипотезы',kk:'Құқықтық болжамдар'};readonly requiresAi=true;
+  async execute(ctx:CheckContext):Promise<CheckResult>{if(ctx.osint?.legalNorms?.length){const result=await ctx.analyze('legal');return {status:'completed',summary:result.assessment,legalHypotheses:result.legalHypotheses};}return {status:'skipped',summary:{ru:'Проверенный корпус законодательства Казахстана не подключён. Статьи и квалификация не определены; требуется юридическая проверка.',kk:'Қазақстан заңнамасының тексерілген корпусы қосылмаған. Баптар мен саралау анықталмаған; құқықтық тексеру қажет.'}};}
 }
 export class EvidenceIntegrityCheck implements InspectionCheck {
   readonly id='integrity';readonly version='1.0.0';readonly name={ru:'Проверка связи цитат с материалами',kk:'Дәйексөздердің материалдармен байланысын тексеру'};readonly requiresAi=false;

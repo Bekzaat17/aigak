@@ -1,3 +1,4 @@
+import {legalOutputSchema,parseLegal} from '../ai/legal-schema.ts';
 import type {AiAnalyzer} from './contracts.ts';
 import {AiGateway} from '../ai/gateway.ts';
 import {loadAiConfig} from '../ai/config.ts';
@@ -10,18 +11,22 @@ import {AiError} from '../ai/contracts.ts';
 export class GatewayAnalyzer implements AiAnalyzer {
   constructor(private readonly gateway:AiGateway){}
   get available(){return this.gateway.available;}
-  async analyze(evidence:Parameters<AiAnalyzer['analyze']>[0],options:Parameters<AiAnalyzer['analyze']>[1]){
+  async analyze(evidence:Parameters<AiAnalyzer['analyze']>[0],options:Parameters<AiAnalyzer['analyze']>[1]):ReturnType<AiAnalyzer['analyze']>{
     const task=options.task;
     const sources=evidence.filter(e=>e.text?.trim());
     const input=JSON.stringify({
-      sources:sources.map(e=>({id:e.id,text:e.text})),
+      sources:sources.map(e=>({id:e.id,text:e.text,sourceUrl:e.sourceUrl})),
+      osint:options.osint,
       candidates:options.candidates||[],
-      previousStages:(options.previousStages||[]).map(s=>({id:s.id,status:s.status,summary:s.summary,observations:s.observations,review:s.review})),
+      previousStages:(options.previousStages||[]).map(s=>({id:s.id,status:s.status,summary:s.summary,observations:s.observations,review:s.review,legalHypotheses:s.legalHypotheses})),
     });
     // Fail visibly rather than silently inspecting a truncated source.
     if(input.length>180000)throw new AiError('AI_INPUT_TOO_LARGE');
+    if(task==='legal')return this.gateway.complete(task,{instructions:prompts.legal,input,schema:legalOutputSchema,schemaName:'legal_v1'},
+      {promptVersion:'legal/1.0.0',schemaVersion:'legal/1.0.0'},options.signal,
+      {beforeAttempt:options.beforeAttempt||(()=>{}),onAttempt:options.onAttempt||(()=>{})},text=>parseLegal(text,options.osint?.legalNorms||[],options.candidates||[]));
     return this.gateway.complete(task,{instructions:prompts[task],input,schema:outputSchema,schemaName:'inspection_v2'},
-      {promptVersion:PROMPT_VERSION,schemaVersion:SCHEMA_VERSION},options.signal,
+      {promptVersion:task==='pro_review'?'pro-review/1.0.0':PROMPT_VERSION,schemaVersion:SCHEMA_VERSION},options.signal,
       {beforeAttempt:options.beforeAttempt||(()=>{}),onAttempt:options.onAttempt||(()=>{})},
       text=>parseAnalysis(text,sources));
   }

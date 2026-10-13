@@ -8,7 +8,7 @@ export class AiGateway {
     private readonly adapters:Record<string,ModelAdapter>,
     private readonly env:NodeJS.ProcessEnv=process.env,
   ){}
-  get available(){return Object.values(this.config.routes).every(route=>route.some(id=>!!this.env[this.config.profiles[id].apiKeyEnv]));}
+  get available(){return (['context','mechanics','verification'] as const).map(task=>this.config.routes[task]).every(route=>route.some(id=>!!this.env[this.config.profiles[id].apiKeyEnv]));}
   async complete<T>(task:AiTask,request:ModelRequest,versions:{promptVersion:string;schemaVersion:string},signal:AbortSignal,observer:AttemptObserver,validate:(text:string)=>T):Promise<T>{
     let last=new AiError('AI_NOT_CONFIGURED');
     const route=this.config.routes[task];

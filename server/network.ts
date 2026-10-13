@@ -20,14 +20,15 @@ export async function resolvePublic(u: URL) {
   return addresses[0];
 }
 export interface CaptureResponse { body: Buffer; status: number; headers: http.IncomingHttpHeaders; url: string; redirects: {url:string;status:number}[] }
-export async function safeFetch(value: string, maxBytes = 8 * 1024 * 1024, hops = 5): Promise<CaptureResponse> {
+export async function safeFetch(value: string, maxBytes = 8 * 1024 * 1024, hops = 5, signal?:AbortSignal): Promise<CaptureResponse> {
   let current = value; const redirects: CaptureResponse['redirects'] = [];
   for (let i = 0; i <= hops; i++) {
+    signal?.throwIfAborted();
     const u = parsePublicUrl(current); const address = await resolvePublic(u);
     // Pin the checked DNS answer into the actual connection to prevent DNS rebinding.
     const result = await new Promise<{body:Buffer;status:number;headers:http.IncomingHttpHeaders}>((resolve, reject) => {
       const req = (u.protocol === 'https:' ? https : http).request(u, {
-        method: 'GET', agent: false,
+        method: 'GET', agent: false, signal,
         headers: { 'User-Agent': 'aigak/0.1 (public evidence collection)', 'Accept-Encoding': 'identity', Accept: '*/*' },
         lookup: ((_host: string, opts: {all?:boolean}, callback: Function) => opts.all ? callback(null, [address]) : callback(null, address.address, address.family)) as never,
       }, res => {

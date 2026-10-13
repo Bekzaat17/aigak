@@ -39,11 +39,11 @@ export class InspectionFacade {
           else if(check.requiresAi&&!this.ai.available) result={status:'skipped',summary:{ru:'AI не подключён. Этот этап не выполнен.',kk:'AI қосылмаған. Бұл кезең орындалмады.'}};
           else {
             const context={
-              evidence:structuredClone(input.evidence),findings:structuredClone(findings),links:[...input.links],signal:controller.signal,
+              osint:structuredClone(input.osint),evidence:structuredClone(input.evidence),findings:structuredClone(findings),links:[...input.links],signal:controller.signal,
               analyze:async(task:AiTask)=>{
                 if(!check.requiresAi||aiCalls>=strategy.maxAiCalls)throw new Error('AI_BUDGET_EXCEEDED');
                 controller.signal.throwIfAborted();aiCalls++;
-                return this.ai.analyze(structuredClone(input.evidence),{task,signal:controller.signal,candidates:structuredClone(findings),previousStages:structuredClone(stages),beforeAttempt:()=>{if(attempts>=strategy.maxAiCalls*4)throw new Error('AI_BUDGET_EXCEEDED');attempts++;},onAttempt:attempt=>aiAttempts.push(attempt)});
+                return this.ai.analyze(structuredClone(input.evidence),{task,osint:structuredClone(input.osint),signal:controller.signal,candidates:structuredClone(findings),previousStages:structuredClone(stages),beforeAttempt:()=>{if(attempts>=strategy.maxAiCalls*4)throw new Error('AI_BUDGET_EXCEEDED');attempts++;},onAttempt:attempt=>aiAttempts.push(attempt)});
               },
             };
             // Enforce the run deadline even for custom providers that ignore cancellation.
@@ -56,6 +56,9 @@ export class InspectionFacade {
               })]);
             } finally {controller.signal.removeEventListener('abort',abortListener);}
             validateFindings(result.findings||[],input);
+            for(const h of result.legalHypotheses||[]){
+              if(!h.normQuote||!input.osint?.legalNorms?.some(n=>n.id===h.normId&&n.quote.includes(h.normQuote))||!h.findingIds.length||h.findingIds.some(id=>!findings.some(f=>f.id===id)))throw new Error('UNGROUNDED_LEGAL_HYPOTHESIS');
+            }
             if(result.likelihood!==undefined&&(!Number.isFinite(result.likelihood)||result.likelihood<0||result.likelihood>100))throw new Error('INVALID_LIKELIHOOD');
             if(result.status==='completed'){
               findings=mergeFindings(result.replaceFindings?[]:findings,result.findings||[],check.id);
@@ -67,7 +70,7 @@ export class InspectionFacade {
         } catch(e){errorCode=e instanceof Error&&/^[A-Z_]+$/.test(e.message)?e.message:'CHECK_FAILED';}
         const status=errorCode?'failed':result!.status;
         const summary=errorCode?{ru:`Этап не выполнен (${errorCode}). Остальные материалы сохранены.`,kk:`Кезең орындалмады (${errorCode}). Қалған материалдар сақталды.`}:result!.summary;
-        const stage:InspectionStage={aiAttempts,review:status==='completed'?result?.review:undefined,id:check.id,version:check.version,name:check.name,status,startedAt:new Date(start).toISOString(),durationMs:Date.now()-start,summary,observations:status==='completed'?structuredClone(result?.findings||[]):[],findingIds:status==='completed'?(result?.findings||[]).map(f=>f.id):[],...(errorCode?{errorCode}:{})};
+        const stage:InspectionStage={legalHypotheses:status==='completed'?structuredClone(result?.legalHypotheses):undefined,aiAttempts,review:status==='completed'?result?.review:undefined,id:check.id,version:check.version,name:check.name,status,startedAt:new Date(start).toISOString(),durationMs:Date.now()-start,summary,observations:status==='completed'?structuredClone(result?.findings||[]):[],findingIds:status==='completed'?(result?.findings||[]).map(f=>f.id):[],...(errorCode?{errorCode}:{})};
         stages.push(stage);if(status!=='completed')issues.push({ru:`${check.name.ru}: ${summary.ru}`,kk:`${check.name.kk}: ${summary.kk}`});
         onStage(structuredClone(stage));
       }

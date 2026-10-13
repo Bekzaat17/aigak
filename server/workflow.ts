@@ -1,3 +1,8 @@
+import { OfficialSourcesService } from './osint/official.ts';
+import { DetectiveService } from './osint/detective.ts';
+import { createOsintFacade } from './osint/index.ts';
+import type { OsintFacade } from './osint/facade.ts';
+import { collectContactPages } from './osint/site-pages.ts';
 import { randomUUID } from 'node:crypto';
 import type { CaseRecord, Decision } from '../shared/types.ts';
 import { busyStatuses } from '../shared/types.ts';
@@ -29,7 +34,7 @@ export function approveCase(store:Store,c:CaseRecord,officer:string,notes:string
 }
 export class Queue {
   pending:string[]=[];running=false;
-  constructor(private store:Store,private inspector:InspectionFacade=createInspectionFacade()) {
+  constructor(private store:Store,private inspector:InspectionFacade=createInspectionFacade(),private osint:OsintFacade=createOsintFacade(),private detective=new DetectiveService(),private official=new OfficialSourcesService()) {
     for(const c of store.all()) if(busyStatuses.includes(c.status)) {c.status='failed';c.step={ru:'Обработка прервана перезапуском',kk:'Өңдеу қайта іске қосу кезінде үзілді'};c.issues.push(c.step);store.event(c,'processing.interrupted');}
   }
   add(id:string) {this.pending.push(id);void this.drain();}
@@ -43,6 +48,19 @@ export class Queue {
       c.status='collecting';c.step={ru:'Фиксация и извлечение текста',kk:'Тіркеу және мәтінді алу'};this.store.event(c,'collection.started');
       if(c.sourceType==='url') await collectUrl(this.store,c);
       else for(const e of [...c.evidence]) if(e.kind==='original') await extractFile(this.store,c,e);
+      c.step={ru:'Паспорт ресурса и публичные реквизиты',kk:'Ресурс паспорты және ашық деректемелер'};this.store.event(c,'osint.started');
+      const pageStage=await collectContactPages(this.store,c);
+      c.osint=await this.osint.inspect({url:c.sourceUrl,finalUrl:c.evidence.find(e=>e.method==='playwright-dom')?.sourceUrl||c.redirects.at(-1)?.url,evidence:[...c.evidence]},
+        (artifact,collector)=>this.store.addEvidence(c,artifact.bytes,{name:artifact.name,mime:artifact.mime,kind:'metadata',method:'osint-'+collector,sourceUrl:artifact.sourceUrl}));
+      c.osint.stages.unshift(pageStage);
+      if(pageStage.status==='partial')c.osint.status='partial';
+      if(c.analysisLevel==='pro'){
+        await this.official.enrich(c.osint,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
+        c.step={ru:'Проверка технических связей',kk:'Техникалық байланыстарды тексеру'};
+        const sources=c.evidence.map(e=>e.mime==='text/html'&&!e.method.startsWith('official-')?{...e,text:this.store.read(c,e).toString()}:e);
+        await this.detective.investigate(c.osint,sources,(a,collector)=>this.store.addEvidence(c,a.bytes,{name:a.name,mime:a.mime,kind:'metadata',method:collector,sourceUrl:a.sourceUrl}));
+      }
+      this.store.event(c,'osint.completed',c.osint.status);
       c.status='analyzing';c.step={ru:'Поиск признаков и проверка цитат',kk:'Белгілерді іздеу және дәйексөздерді тексеру'};this.store.event(c,'analysis.started');
       const result=await this.inspector.inspect(c,stage=>{
         c.step=stage.name;

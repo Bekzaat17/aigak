@@ -16,14 +16,15 @@ const profile=z.object({
   temperature:z.number().min(0).max(2).optional(),
 }).strict();
 const chain=z.array(z.string().min(1)).min(1).max(2);
-const schema=z.object({profiles:z.record(profile),routes:z.object({context:chain,mechanics:chain,verification:chain}).strict()}).strict();
+const schema=z.object({profiles:z.record(profile),routes:z.object({context:chain,mechanics:chain,verification:chain,legal:chain.optional(),pro_review:chain.optional()}).strict()}).strict();
 export function parseAiConfig(value:unknown):AiConfiguration {
   const parsed=schema.safeParse(value);
   if(!parsed.success)throw new Error('INVALID_AI_CONFIG');
-  for(const route of Object.values(parsed.data.routes)){
+  const routes={...parsed.data.routes,legal:parsed.data.routes.legal||parsed.data.routes.verification,pro_review:parsed.data.routes.pro_review||parsed.data.routes.verification};
+  for(const route of Object.values(routes)){
     if(new Set(route).size!==route.length||route.some(id=>!Object.hasOwn(parsed.data.profiles,id)))throw new Error('INVALID_AI_ROUTE');
   }
-  return parsed.data;
+  return {...parsed.data,routes};
 }
 export function loadAiConfig(env:NodeJS.ProcessEnv=process.env):AiConfiguration {
   if(env.AIGAK_AI_CONFIG){

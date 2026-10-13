@@ -13,6 +13,7 @@ export function createInspectionFacade(ai:AiAnalyzer=createAiAnalyzer()){
     .register('mechanics',()=>new AdvancedCheck('mechanics',{ru:'Механика предложения',kk:'Ұсыныс механикасы'}))
     .register('verification',()=>new AdvancedCheck('verification',{ru:'Проверка выводов',kk:'Қорытындыларды тексеру'}))
     .register('connections',()=>new ConnectionsCheck())
+    .register('pro_review',()=>new AdvancedCheck('pro_review',{ru:'Итоговая проверка расследования',kk:'Тергеуді қорытынды тексеру'}))
     .register('legal',()=>new LegalCheck())
     .register('integrity',()=>new EvidenceIntegrityCheck());
   return new InspectionFacade(registry,new StrategyFactory(),ai);

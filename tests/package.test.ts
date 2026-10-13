@@ -77,3 +77,11 @@ test('alternative layout is injected without changing the package service',async
  assert.equal(await zip.file('report-ru.html')!.async('string'),'<p>Department report</p>');
  input.layoutId='unknown';await assert.rejects(custom.build(input),/UNKNOWN_LAYOUT/);
 });
+
+test('OSINT snapshots are exported and orphaned source references block the package',async()=>{
+ const input=await fixture();input.document.osint={version:'1',status:'partial',stages:[],observations:[{id:'o',kind:'email',value:'office@example.com',evidenceId:'e1',collector:'test',status:'observed',collectedAt:'now'}]};
+ const zip=await JSZip.loadAsync((await service().build(input)).bytes);
+ assert.ok(zip.file('osint.json'));assert.ok((await zip.file('report-ru.html')!.async('string')).includes('office@example.com'));
+ input.document.osint.observations[0].evidenceId='missing';
+ await assert.rejects(service().build(input),/OSINT_PROVENANCE_MISSING/);
+});

@@ -35,7 +35,7 @@ function saveText(store:Store,c:CaseRecord,e:Evidence,text:string,method:string)
   if (!text.trim()) { issue(c,`${e.name}: извлекаемый текст не найден. Нужна ручная проверка.`,`${e.name}: мәтін алынбады. Қолмен тексеру қажет.`); return; }
   if (text.length > maxText) issue(c,`${e.name}: анализ ограничен первыми ${maxText} символами.`,`${e.name}: талдау алғашқы ${maxText} таңбамен шектелді.`);
   const limited = text.slice(0,maxText);
-  store.addEvidence(c,Buffer.from(limited),{name:`${e.name}.txt`,mime:'text/plain',kind:'text',method,parentId:e.id,text:limited});
+  store.addEvidence(c,Buffer.from(limited),{name:`${e.name}.txt`,mime:'text/plain',kind:'text',method,parentId:e.id,text:limited,sourceUrl:e.sourceUrl});
 }
 export async function extractFile(store:Store,c:CaseRecord,e:Evidence) {
   const data = store.read(c,e);
@@ -83,7 +83,7 @@ export async function collectUrl(store:Store,c:CaseRecord) {
   const declared=String(result.headers['content-type']||'').split(';')[0];
   const mime=declared==='text/html'?'text/html':detectMime(result.body,new URL(result.url).pathname);
   const ext=mime==='text/html'?'html':mime==='application/pdf'?'pdf':'bin';
-  const original=store.addEvidence(c,result.body,{name:`response.${ext}`,mime,kind:'original',method:'http-get'});
+  const original=store.addEvidence(c,result.body,{name:`response.${ext}`,mime,kind:'original',method:'http-get',sourceUrl:result.url});
   store.addEvidence(c,Buffer.from(JSON.stringify({requestedUrl:c.sourceUrl,finalUrl:result.url,status:result.status,headers:result.headers,redirects:result.redirects,receivedAt:original.createdAt},null,2)),{name:'http-metadata.json',mime:'application/json',kind:'metadata',method:'http-get',parentId:original.id});
   if(result.status>=400) issue(c,`Сервер вернул HTTP ${result.status}; содержимое может быть страницей ошибки.`,`Сервер HTTP ${result.status} қайтарды; мазмұн қате беті болуы мүмкін.`);
   await extractFile(store,c,original);
@@ -112,7 +112,7 @@ export async function collectUrl(store:Store,c:CaseRecord) {
     await page.waitForLoadState('networkidle',{timeout:2500}).catch(()=>{});
     const text=await page.locator('body').innerText();
     const dom=await page.content();
-    const domFile=store.addEvidence(c,Buffer.from(dom),{name:'rendered.html',mime:'text/html',kind:'snapshot',method:'playwright-dom',parentId:original.id});
+    const domFile=store.addEvidence(c,Buffer.from(dom),{name:'rendered.html',mime:'text/html',kind:'snapshot',method:'playwright-dom',parentId:original.id,sourceUrl:page.url()});
     // Prefer rendered text, keeping the HTTP text in the archive but avoiding duplicate findings.
     if(text.trim()) {for(const e of c.evidence) if(e.kind==='text'&&e.parentId===original.id) delete e.text; saveText(store,c,domFile,text,'playwright-innerText');}
     const height=await page.evaluate(()=>document.documentElement.scrollHeight);

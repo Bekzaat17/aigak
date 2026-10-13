@@ -14,7 +14,7 @@ export function packageDocument(c:CaseRecord):PackageDocument {
     sourceUrl:c.sourceUrl,createdAt:c.createdAt,status:c.status==='verified'?'verified':'draft',
     demo:c.demo,officer:c.officer,notes:c.notes,analysisLevel:c.analysisLevel,engine:c.engine,
     assessment:c.assessment,likelihood:c.likelihood,evidence:c.evidence,findings:c.findings,
-    issues:c.issues,inspection:c.inspection,audit:c.audit,clarifications:c.clarifications,
+    issues:c.issues,inspection:c.inspection,osint:c.osint,audit:c.audit,clarifications:c.clarifications,
     links:c.links,redirects:c.redirects,
   });
 }

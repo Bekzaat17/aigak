@@ -10,6 +10,7 @@ export function aiStageDetails(stage:InspectionStage,lang:Lang):string {
   for(const u of stage.review?.uncertainties||[])lines.push(u[lang]);
   for(const c of stage.review?.contradictions||[])lines.push(`«${c.quote}» (${c.evidenceId}): ${c.explanation[lang]}`);
   for(const q of stage.review?.questions||[])lines.push((lang==='ru'?'Уточнить: ':'Нақтылау: ')+q[lang]);
+  for(const h of stage.legalHypotheses||[])lines.push(h.normId+' — «'+h.normQuote+'»; '+h.findingIds.join(', ')+': '+h.reason[lang]+'; '+h.missing.map(m=>m[lang]).join('; '));
   return lines.join('\n');
 }
 

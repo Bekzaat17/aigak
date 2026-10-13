@@ -140,3 +140,28 @@ test('verification sees failed prerequisites and the result remains partial',asy
  assert.equal(result.run.status,'partial');assert.equal(result.likelihood,null);
  assert.equal(result.run.stages[3].status,'completed');
 });
+
+test('legal schema rejects invented statutes, changed quotations and unsupported findings',async()=>{
+ const {parseLegal}=await import('../server/ai/legal-schema.ts');
+ const {analyzeRules}=await import('../server/rules/engine.ts');
+ const findings=analyzeRules([source]);
+ const norm={id:'norm1',article:'6',quote:'Тестовая норма закона',evidenceId:'law',sourceUrl:'https://example.com',retrievedAt:'now',temporalStatus:'requires_review' as const};
+ const hypothesis={normId:'norm1',normQuote:'норма закона',findingIds:[findings[0].id],reason:bi,missing:[bi]};
+ const response={assessment:bi,hypotheses:[hypothesis]};
+ assert.equal(parseLegal(JSON.stringify(response),[norm],findings).legalHypotheses.length,1);
+ for(const patch of [{normId:'invented'},{normQuote:'invented'},{findingIds:['missing']}])assert.throws(()=>parseLegal(JSON.stringify({...response,hypotheses:[{...hypothesis,...patch}]}),[norm],findings),/AI_UNGROUNDED/);
+});
+test('pro legal request uses a separate schema and configured route without inventing evidence',async()=>{
+ const {analyzeRules}=await import('../server/rules/engine.ts');const findings=analyzeRules([source]);
+ const norm={id:'norm1',article:'6',quote:'Тестовая норма закона',evidenceId:'law',sourceUrl:'https://example.com',retrievedAt:'now',temporalStatus:'requires_review' as const};
+ const adapter:ModelAdapter={async complete(_p,_k,r){assert.equal(r.schemaName,'legal_v1');return {text:JSON.stringify({assessment:bi,hypotheses:[{normId:'norm1',normQuote:'норма закона',findingIds:[findings[0].id],reason:bi,missing:[bi]}]})};}};
+ const analyzer=new GatewayAnalyzer(new AiGateway(configuration(),{responses:adapter,'chat-completions':adapter},{TEST_KEY:'x',OTHER_KEY:'y'}));
+ const result=await analyzer.analyze([source],{signal:signal(),task:'legal',candidates:findings,osint:{version:'1',status:'partial',stages:[],observations:[],legalNorms:[norm]}});
+ assert.equal(result.legalHypotheses?.length,1);assert.equal(result.findings.length,0);
+});
+
+test('an unavailable optional legal profile does not disable advanced analysis',()=>{
+ const config=configuration();config.routes.legal=['b'];config.routes.verification=['a'];config.routes.pro_review=['a'];
+ const gateway=new AiGateway(config,{}, {TEST_KEY:'x'});
+ assert.equal(gateway.available,true);
+});
