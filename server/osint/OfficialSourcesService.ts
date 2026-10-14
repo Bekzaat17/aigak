@@ -109,7 +109,7 @@ export class OfficialSourcesService {
         const url = kind === 'registry' ? REGISTRY_URL : LAW_URL;
         const response = await this.fetcher(url, 6 * 1024 * 1024, 3, AbortSignal.timeout(16000));
         if (response.status !== 200) throw new Error('OFFICIAL_SOURCE_UNAVAILABLE');
-        const raw = save(
+        const raw = await save(
           {
             name: kind === 'registry' ? 'bookmakers-2026-05-05.xlsx' : 'law-Z070000219.html',
             mime:

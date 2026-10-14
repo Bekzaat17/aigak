@@ -6,7 +6,7 @@ export class TextExtractor implements FileExtractor {
     return mime === 'text/plain' || mime === 'text/html';
   }
   async extract({ store, record: c, evidence: e, data }: ExtractionContext): Promise<void> {
-    saveText(
+    await saveText(
       store,
       c,
       e,

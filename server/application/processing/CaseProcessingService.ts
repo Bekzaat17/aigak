@@ -9,8 +9,8 @@ export class CaseProcessingService implements CaseProcessor {
     private readonly stages: readonly ProcessingStage[],
   ) {}
 
-  recoverInterrupted(): void {
-    for (const record of this.store.all()) {
+  async recoverInterrupted(): Promise<void> {
+    for (const record of await this.store.all()) {
       if (!busyStatuses.includes(record.status)) continue;
       record.status = 'failed';
       record.step = {
@@ -18,19 +18,19 @@ export class CaseProcessingService implements CaseProcessor {
         kk: 'Өңдеу қайта іске қосу кезінде үзілді',
       };
       record.issues.push(record.step);
-      this.store.event(record, 'processing.interrupted');
+      await this.store.event(record, 'processing.interrupted');
     }
   }
 
   async run(id: string): Promise<void> {
-    const record = this.store.get(id);
+    const record = await this.store.get(id);
     if (!record) return;
     try {
       for (const stage of this.stages) await stage.execute(record);
       record.status = 'review';
       record.completedAt = new Date().toISOString();
       record.step = { ru: 'Ожидает проверки офицером', kk: 'Қызметкер тексеруін күтуде' };
-      this.store.event(
+      await this.store.event(
         record,
         'analysis.completed',
         `${record.findings.length} indicators; ${record.engine}`,
@@ -43,7 +43,7 @@ export class CaseProcessingService implements CaseProcessor {
         ru: `Сбор остановлен (${code}). Уже полученные материалы сохранены.`,
         kk: `Жинау тоқтатылды (${code}). Алынған материалдар сақталды.`,
       });
-      this.store.event(record, 'processing.failed', code);
+      await this.store.event(record, 'processing.failed', code);
     }
   }
 }

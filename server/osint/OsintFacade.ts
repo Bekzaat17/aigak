@@ -96,9 +96,10 @@ export class OsintFacade {
         };
         if (outcome.status === 'fulfilled') {
           const { result, durationMs } = outcome.value;
-          const saved = result.artifacts.map((a) =>
-            save(a, collector.id + '@' + collector.version),
-          );
+          const saved = [];
+          for (const a of result.artifacts) {
+            saved.push(await save(a, collector.id + '@' + collector.version));
+          }
           stage.status = result.status;
           stage.summary = result.summary;
           stage.durationMs = durationMs;

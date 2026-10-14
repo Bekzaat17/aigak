@@ -47,7 +47,7 @@ export class ResourceInvestigator {
           report.siteDomain || report.registrationDomain || report.hostname,
           signal,
         );
-        const raw = save(
+        const raw = await save(
           {
             name: 'discovery-' + provider.id + '.json',
             mime: 'application/json',
@@ -112,7 +112,7 @@ export class ResourceInvestigator {
           !String(response.headers['content-type']).includes('text/html')
         )
           throw Error('PAGE_UNAVAILABLE');
-        const raw = save(
+        const raw = await save(
           {
             name: 'candidate-' + candidate.hostname + '.html',
             mime: 'text/html',
@@ -122,7 +122,7 @@ export class ResourceInvestigator {
           'detective-page@1',
         );
         const text = htmlText(response.body.toString()).text.slice(0, 40000);
-        const derived = save(
+        const derived = await save(
           {
             name: 'candidate-' + candidate.hostname + '.txt',
             mime: 'text/plain',

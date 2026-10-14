@@ -16,7 +16,7 @@ export const errorHandler: express.ErrorRequestHandler = (
       ? 429
       : code === 'NOT_FOUND'
         ? 404
-        : code === 'INTEGRITY_FAILED' || code === 'CASE_BUSY'
+        : code === 'INTEGRITY_FAILED' || code === 'CASE_BUSY' || code === 'CASE_CONFLICT'
           ? 409
           : 400;
   res.status(status).json({ error: code });

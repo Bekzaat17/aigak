@@ -6,14 +6,34 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout, clearTimeout } from 'node:timers';
 import { chromium } from 'playwright';
+import { Pool } from 'pg';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'aigak-ui-smoke-'));
 const port = process.env.SMOKE_PORT || '4329';
 const origin = `http://localhost:${port}`;
+const schema = `smoke_${Date.now()}_${process.pid}`;
+const postgres = process.env.SMOKE_DATABASE_URL
+  ? new Pool({ connectionString: process.env.SMOKE_DATABASE_URL, max: 1 })
+  : null;
+let databaseUrl = '';
+if (postgres) {
+  try {
+    await postgres.query(`CREATE SCHEMA "${schema}"`);
+    const scoped = new URL(process.env.SMOKE_DATABASE_URL);
+    scoped.searchParams.set('options', `-c search_path=${schema}`);
+    databaseUrl = scoped.href;
+  } catch (error) {
+    await postgres.end();
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
+}
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], {
   env: {
     ...process.env,
-    NODE_ENV: 'production',
+    NODE_ENV: process.env.SMOKE_NODE_ENV || 'production',
+    STORAGE_DRIVER: process.env.SMOKE_DATABASE_URL ? 'postgres' : 'sqlite',
+    DATABASE_URL: databaseUrl,
     PORT: port,
     DATA_DIR: directory,
     OPENAI_API_KEY: '',
@@ -91,6 +111,8 @@ try {
   await page.getByRole('button', { name: 'Открыть пример', exact: false }).click();
   await page.locator('.finding-index button').first().waitFor();
   assert.ok((await page.locator('.finding-index button').count()) > 0);
+  await page.reload();
+  await page.locator('.finding-index button').first().waitFor();
   const accepted = page.getByRole('button', { name: 'Подтвердить', exact: true });
   await accepted.click();
   await page.locator('.decision-options button:first-child[aria-pressed="true"]').waitFor();
@@ -179,4 +201,11 @@ try {
   if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM');
   await exited;
   rmSync(directory, { recursive: true, force: true });
+  if (postgres) {
+    try {
+      await postgres.query(`DROP SCHEMA "${schema}" CASCADE`);
+    } finally {
+      await postgres.end();
+    }
+  }
 }

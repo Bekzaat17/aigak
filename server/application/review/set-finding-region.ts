@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { busyStatuses } from '../../../shared/types.ts';
 import type { CaseStore } from '../ports/storage.ts';
-export function setFindingRegionCommand(
+export async function setFindingRegionCommand(
   store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
   params: { id: string; findingId: string },
   body: unknown,
@@ -15,7 +15,7 @@ export function setFindingRegionCommand(
       height: z.number().positive().max(1),
     })
     .parse(body);
-  const c = store.get(params.id);
+  const c = await store.get(params.id);
   if (!c) throw Error('NOT_FOUND');
   if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
   if (
@@ -29,6 +29,6 @@ export function setFindingRegionCommand(
   f.region = { ...input, author: 'inspector' };
   c.status = 'review';
   delete c.reviewedAt;
-  store.event(c, 'finding.region', JSON.stringify({ id: f.id, ...input }));
+  await store.event(c, 'finding.region', JSON.stringify({ id: f.id, ...input }));
   return c;
 }

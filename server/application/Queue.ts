@@ -4,6 +4,12 @@ import type { CaseProcessor, JobQueue } from './ports/processing.ts';
 export class Queue implements JobQueue {
   private readonly pending: string[] = [];
   private running = false;
+  private readonly idleWaiters = new Set<() => void>();
+
+  whenIdle(): Promise<void> {
+    if (!this.running && !this.pending.length) return Promise.resolve();
+    return new Promise((resolve) => this.idleWaiters.add(resolve));
+  }
 
   constructor(private readonly processor: CaseProcessor) {}
 
@@ -20,9 +26,17 @@ export class Queue implements JobQueue {
     if (this.running) return;
     this.running = true;
     try {
-      while (this.pending.length) await this.processor.run(this.pending.shift()!);
+      while (this.pending.length) {
+        try {
+          await this.processor.run(this.pending.shift()!);
+        } catch {
+          console.error('PROCESSING_STORAGE_FAILED');
+        }
+      }
     } finally {
       this.running = false;
+      for (const resolve of this.idleWaiters) resolve();
+      this.idleWaiters.clear();
     }
   }
 }

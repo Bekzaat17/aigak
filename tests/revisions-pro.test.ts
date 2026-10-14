@@ -41,24 +41,24 @@ const source = (text: string): Evidence => ({
   text,
   sourceUrl: 'https://example.com/',
 });
-test('revision freezes decisions and responses, invalidates approval, blocks overlapping runs', () => {
+test('revision freezes decisions and responses, invalidates approval, blocks overlapping runs', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'aigak-revision-'));
   const storage = createLocalStorage(dir);
   const { store } = storage;
   try {
-    const c = newCase(store, { title: 'QA', sourceType: 'text', useAi: false });
+    const c = await newCase(store, { title: 'QA', sourceType: 'text', useAi: false });
     c.status = 'verified';
     c.reviewedAt = '2026-01-01';
     c.followUps = [
       { id: 'q', question: { ru: 'Почему?', kk: 'Неге?' }, answer: 'Ответ', evidenceIds: [] },
     ];
-    startRevision(store, c, 'pro');
+    await startRevision(store, c, 'pro');
     assert.equal(c.status, 'queued');
     assert.equal(c.reviewedAt, undefined);
     assert.equal(c.revisions?.[0].status, 'verified');
     c.followUps[0].answer = 'Changed';
     assert.equal(c.revisions?.[0].followUps[0].answer, 'Ответ');
-    assert.throws(() => startRevision(store, c, 'basic'), /CASE_BUSY/);
+    await assert.rejects(async () => await startRevision(store, c, 'basic'), /CASE_BUSY/);
     store.verify(c);
     c.revisions![0].followUps[0].answer = 'Tampered';
     assert.throws(() => store.verify(c), /INTEGRITY_FAILED/);
@@ -198,12 +198,16 @@ test('dossier never claims readiness with missing legal/AI context', () => {
   );
   assert.ok(buildDossier(c).tasks.some((t) => t.id === 'law' && t.status === 'missing'));
 });
-test('HTML package preserves appendix anchors, inspector statements and escaped text', () => {
+test('HTML package preserves appendix anchors, inspector statements and escaped text', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'aigak-package-'));
   const storage = createLocalStorage(dir);
   const { store } = storage;
   try {
-    const c = newCase(store, { title: '<script>QA</script>', sourceType: 'text', useAi: false });
+    const c = await newCase(store, {
+      title: '<script>QA</script>',
+      sourceType: 'text',
+      useAi: false,
+    });
     c.evidence = [source('Text')];
     c.followUps = [
       {

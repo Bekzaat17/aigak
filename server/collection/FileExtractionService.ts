@@ -27,6 +27,6 @@ export class FileExtractionService {
         `${evidence.name}: мәтінді алу мүмкін болмады. Түпнұсқа сақталды.`,
       );
     }
-    this.store.save(record);
+    await this.store.save(record);
   }
 }

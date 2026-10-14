@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { busyStatuses } from '../../../shared/types.ts';
 import type { CaseStore } from '../ports/storage.ts';
-export function answerQuestionCommand(
+export async function answerQuestionCommand(
   store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
   params: { id: string; questionId: string },
   body: unknown,
@@ -9,7 +9,7 @@ export function answerQuestionCommand(
   const input = z
     .object({ answer: z.string().trim().max(4000), evidenceIds: z.array(z.string()).max(30) })
     .parse(body);
-  const c = store.get(params.id);
+  const c = await store.get(params.id);
   if (!c) throw Error('NOT_FOUND');
   if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
   const q = c.followUps?.find((q) => q.id === params.questionId);
@@ -19,6 +19,6 @@ export function answerQuestionCommand(
   Object.assign(q, input);
   c.status = 'review';
   delete c.reviewedAt;
-  store.event(c, 'question.answered', JSON.stringify({ id: q.id, ...input }));
+  await store.event(c, 'question.answered', JSON.stringify({ id: q.id, ...input }));
   return c;
 }

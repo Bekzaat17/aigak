@@ -17,7 +17,7 @@ export class ResourceProfileStage implements ProcessingStage {
       ru: 'Паспорт ресурса и публичные реквизиты',
       kk: 'Ресурс паспорты және ашық деректемелер',
     };
-    this.store.event(c, 'osint.started');
+    await this.store.event(c, 'osint.started');
     const pageStage = c.reanalysis ? undefined : await this.collectContactPages(c);
     c.osint = await this.osint.inspect(
       {
@@ -27,8 +27,8 @@ export class ResourceProfileStage implements ProcessingStage {
           c.redirects.at(-1)?.url,
         evidence: [...c.evidence],
       },
-      (artifact, collector) =>
-        this.store.addEvidence(c, artifact.bytes, {
+      async (artifact, collector) =>
+        await this.store.addEvidence(c, artifact.bytes, {
           name: artifact.name,
           mime: artifact.mime,
           kind: 'metadata',

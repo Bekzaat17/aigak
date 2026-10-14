@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { CaseStore } from '../ports/storage.ts';
 import { reviewFinding } from '../review-case.ts';
-export function reviewFindingCommand(
+export async function reviewFindingCommand(
   store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
   params: { id: string; findingId: string },
   body: unknown,
@@ -12,8 +12,8 @@ export function reviewFindingCommand(
       note: z.string().max(2000).default(''),
     })
     .parse(body);
-  const c = store.get(params.id);
+  const c = await store.get(params.id);
   if (!c) throw new Error('NOT_FOUND');
-  reviewFinding(store, c, params.findingId, decision, note);
+  await reviewFinding(store, c, params.findingId, decision, note);
   return c;
 }

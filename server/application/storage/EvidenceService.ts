@@ -10,7 +10,7 @@ export class EvidenceService implements Pick<EvidenceStorage, 'addEvidence' | 'r
     private blobs: BlobStorage,
     private audit: AuditWriter,
   ) {}
-  addEvidence(c: CaseRecord, data: Buffer, input: EvidenceInput) {
+  async addEvidence(c: CaseRecord, data: Buffer, input: EvidenceInput) {
     const id = randomUUID();
     const storedName = `${id}${path
       .extname(input.name)
@@ -26,7 +26,7 @@ export class EvidenceService implements Pick<EvidenceStorage, 'addEvidence' | 'r
       createdAt: new Date().toISOString(),
     };
     c.evidence.push(evidence);
-    this.audit.event(c, 'evidence.saved', `${id} SHA-256 ${evidence.sha256}`);
+    await this.audit.event(c, 'evidence.saved', `${id} SHA-256 ${evidence.sha256}`);
     return evidence;
   }
   read(c: CaseRecord, e: Evidence) {

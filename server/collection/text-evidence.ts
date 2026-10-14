@@ -7,7 +7,7 @@ export function issue(c: CaseRecord, ru: string, kk: string) {
   c.issues.push({ ru, kk });
 }
 
-export function saveText(
+export async function saveText(
   store: CollectionStorage,
   c: CaseRecord,
   e: Evidence,
@@ -29,7 +29,7 @@ export function saveText(
       `${e.name}: талдау алғашқы ${maxText} таңбамен шектелді.`,
     );
   const limited = text.slice(0, maxText);
-  store.addEvidence(c, Buffer.from(limited), {
+  await store.addEvidence(c, Buffer.from(limited), {
     name: `${e.name}.txt`,
     mime: 'text/plain',
     kind: 'text',

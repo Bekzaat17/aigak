@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { busyStatuses } from '../../../shared/types.ts';
 import type { CaseStore } from '../ports/storage.ts';
-export function reviewRelationCommand(
+export async function reviewRelationCommand(
   store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
   params: { id: string; relationId: string },
   body: unknown,
@@ -9,7 +9,7 @@ export function reviewRelationCommand(
   const input = z
     .object({ decision: z.enum(['accepted', 'rejected', 'pending']), note: z.string().max(2000) })
     .parse(body);
-  const c = store.get(params.id);
+  const c = await store.get(params.id);
   if (!c) throw Error('NOT_FOUND');
   if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
   const relation = c.osint?.relations?.find((r) => r.id === params.relationId);
@@ -17,6 +17,6 @@ export function reviewRelationCommand(
   Object.assign(relation, input);
   c.status = 'review';
   delete c.reviewedAt;
-  store.event(c, 'relation.reviewed', JSON.stringify({ id: relation.id, ...input }));
+  await store.event(c, 'relation.reviewed', JSON.stringify({ id: relation.id, ...input }));
   return c;
 }

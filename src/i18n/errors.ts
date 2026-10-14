@@ -1,4 +1,8 @@
 export const errors: Record<string, [string, string]> = {
+  CASE_CONFLICT: [
+    'Дело изменилось во время сохранения. Откройте его заново и повторите правку.',
+    'Сақтау кезінде іс өзгерді. Оны қайта ашып, түзетуді қайталаңыз.',
+  ],
   INVALID_SOURCE_URL: [
     'Укажите один адрес сайта, например example.com или https://example.com.',
     'Бір сайт мекенжайын көрсетіңіз: example.com немесе https://example.com.',

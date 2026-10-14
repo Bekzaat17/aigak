@@ -40,14 +40,14 @@ export class PdfExtractor implements FileExtractor {
           await page.render({ canvas: target.canvas, canvasContext: target.context, viewport })
             .promise;
           const png = target.canvas.toBuffer('image/png');
-          const snapshot = store.addEvidence(c, png, {
+          const snapshot = await store.addEvidence(c, png, {
             name: `${e.name}-page-${n}.png`,
             mime: 'image/png',
             kind: 'snapshot',
             method: 'pdfjs-render',
             parentId: e.id,
           });
-          saveText(store, c, snapshot, await this.ocr.recognize(png), 'tesseract-pdf-page');
+          await saveText(store, c, snapshot, await this.ocr.recognize(png), 'tesseract-pdf-page');
         } finally {
           factory.destroy(target);
         }
@@ -68,7 +68,7 @@ export class PdfExtractor implements FileExtractor {
         );
       const text = pages.join('\n\n');
       if (text.replace(/\[\d+\]/g, '').trim().length >= 10)
-        saveText(store, c, e, text, 'pdfjs-text');
+        await saveText(store, c, e, text, 'pdfjs-text');
     } finally {
       await task.destroy();
     }

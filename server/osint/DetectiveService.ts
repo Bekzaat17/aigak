@@ -115,12 +115,15 @@ export class DetectiveService {
               if (controller.signal.aborted) abort();
             }),
           ]);
-          const saved = result.artifacts.map((a) =>
-            save(
-              { ...a, name: 'candidate-' + candidate.hostname + '-' + a.name },
-              'detective-dns@1.0.0',
-            ),
-          );
+          const saved = [];
+          for (const a of result.artifacts) {
+            saved.push(
+              await save(
+                { ...a, name: 'candidate-' + candidate.hostname + '-' + a.name },
+                'detective-dns@1.0.0',
+              ),
+            );
+          }
           candidate.evidenceIds = saved.map((e) => e.id);
           candidate.status = result.status === 'completed' ? 'dns_checked' : 'unavailable';
           for (const o of result.observations.filter((o) =>

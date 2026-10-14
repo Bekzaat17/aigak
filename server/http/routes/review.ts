@@ -10,29 +10,29 @@ import { setFindingRegionCommand } from '../../application/review/set-finding-re
 import type { HttpDependencies } from '../contracts.ts';
 export function reviewRoutes({ store, templates }: Pick<HttpDependencies, 'store' | 'templates'>) {
   const router = Router();
-  router.patch('/api/cases/:id/findings/:findingId', (req, res) =>
-    res.json(reviewFindingCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/findings/:findingId', async (req, res) =>
+    res.json(await reviewFindingCommand(store, req.params, req.body)),
   );
-  router.patch('/api/cases/:id/clarifications/:questionId', (req, res) =>
-    res.json(answerClarificationCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/clarifications/:questionId', async (req, res) =>
+    res.json(await answerClarificationCommand(store, req.params, req.body)),
   );
-  router.patch('/api/cases/:id/questions/:questionId', (req, res) =>
-    res.json(answerQuestionCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/questions/:questionId', async (req, res) =>
+    res.json(await answerQuestionCommand(store, req.params, req.body)),
   );
-  router.patch('/api/cases/:id/relations/:relationId', (req, res) =>
-    res.json(reviewRelationCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/relations/:relationId', async (req, res) =>
+    res.json(await reviewRelationCommand(store, req.params, req.body)),
   );
-  router.patch('/api/cases/:id/findings/:findingId/region', (req, res) =>
-    res.json(setFindingRegionCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/findings/:findingId/region', async (req, res) =>
+    res.json(await setFindingRegionCommand(store, req.params, req.body)),
   );
-  router.patch('/api/cases/:id/template', (req, res) =>
-    res.json(selectTemplateCommand(store, req.params, req.body, templates)),
+  router.patch('/api/cases/:id/template', async (req, res) =>
+    res.json(await selectTemplateCommand(store, req.params, req.body, templates)),
   );
-  router.patch('/api/cases/:id/legal-review', (req, res) =>
-    res.json(saveLegalReviewCommand(store, req.params, req.body)),
+  router.patch('/api/cases/:id/legal-review', async (req, res) =>
+    res.json(await saveLegalReviewCommand(store, req.params, req.body)),
   );
-  router.post('/api/cases/:id/review', (req, res) =>
-    res.json(approveCaseCommand(store, req.params, req.body)),
+  router.post('/api/cases/:id/review', async (req, res) =>
+    res.json(await approveCaseCommand(store, req.params, req.body)),
   );
   return router;
 }

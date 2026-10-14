@@ -14,7 +14,7 @@ export class ImageExtractor implements FileExtractor {
       );
       return;
     }
-    saveText(store, c, e, await this.ocr.recognize(data), 'tesseract-rus-kaz-eng');
+    await saveText(store, c, e, await this.ocr.recognize(data), 'tesseract-rus-kaz-eng');
     issue(
       c,
       'Текст изображения получен OCR: сверьте цитаты с оригиналом.',

@@ -152,8 +152,12 @@ test('live progress announces a check before its AI request and completion after
   });
   await inspector.inspect(
     { ...input, analysisLevel: 'advanced' },
-    (stage) => events.push('end:' + stage.id),
-    (stage) => events.push('start:' + stage.id),
+    (stage) => {
+      events.push('end:' + stage.id);
+    },
+    (stage) => {
+      events.push('start:' + stage.id);
+    },
   );
   assert.ok(events.indexOf('start:context') < events.indexOf('request:context'));
   assert.ok(events.indexOf('request:context') < events.indexOf('end:context'));

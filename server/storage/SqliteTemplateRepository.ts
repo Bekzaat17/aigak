@@ -7,20 +7,20 @@ export class SqliteTemplateRepository implements TemplateRepository {
       'CREATE TABLE IF NOT EXISTS templates (id TEXT PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL)',
     );
   }
-  list(): TemplateEntry[] {
+  async list(): Promise<TemplateEntry[]> {
     return this.db
       .prepare('SELECT id,name,sha256 FROM templates')
       .all() as unknown as TemplateEntry[];
   }
-  get(id: string): TemplateEntry | undefined {
+  async get(id: string): Promise<TemplateEntry | undefined> {
     return this.db.prepare('SELECT id,name,sha256 FROM templates WHERE id=?').get(id) as
       TemplateEntry | undefined;
   }
-  findByHash(hash: string): TemplateEntry | undefined {
+  async findByHash(hash: string): Promise<TemplateEntry | undefined> {
     return this.db.prepare('SELECT id,name,sha256 FROM templates WHERE sha256=?').get(hash) as
       TemplateEntry | undefined;
   }
-  save(entry: TemplateEntry): void {
+  async save(entry: TemplateEntry): Promise<void> {
     this.db
       .prepare('INSERT INTO templates(id,name,sha256) VALUES(?,?,?)')
       .run(entry.id, entry.name, entry.sha256);

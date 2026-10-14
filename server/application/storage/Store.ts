@@ -15,23 +15,26 @@ export class Store implements CaseStore {
     private evidence: Pick<EvidenceStorage, 'addEvidence' | 'read'>,
     private integrity: Pick<EvidenceStorage, 'verify'>,
   ) {}
-  all() {
-    return this.repository.all();
+  nextNumber(year: number) {
+    return this.repository.nextNumber(year);
   }
-  list() {
-    return this.repository.list();
+  async all() {
+    return await this.repository.all();
   }
-  get(id: string) {
-    return this.repository.get(id);
+  async list() {
+    return await this.repository.list();
   }
-  save(record: CaseRecord) {
-    this.repository.save(record);
+  async get(id: string) {
+    return await this.repository.get(id);
   }
-  event(record: CaseRecord, action: string, detail = '') {
-    this.audit.event(record, action, detail);
+  async save(record: CaseRecord) {
+    await this.repository.save(record);
   }
-  addEvidence(record: CaseRecord, bytes: Buffer, input: EvidenceInput) {
-    return this.evidence.addEvidence(record, bytes, input);
+  async event(record: CaseRecord, action: string, detail = '') {
+    await this.audit.event(record, action, detail);
+  }
+  async addEvidence(record: CaseRecord, bytes: Buffer, input: EvidenceInput) {
+    return await this.evidence.addEvidence(record, bytes, input);
   }
   read(record: CaseRecord, evidence: Evidence) {
     return this.evidence.read(record, evidence);

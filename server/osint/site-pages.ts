@@ -30,7 +30,12 @@ export function contactPageLinks(html: string, base: string): string[] {
   });
   return links;
 }
-function extractLinkedContacts(store: CollectionStorage, c: CaseRecord, e: Evidence, html: string) {
+async function extractLinkedContacts(
+  store: CollectionStorage,
+  c: CaseRecord,
+  e: Evidence,
+  html: string,
+) {
   const $ = load(html);
   const links = [
     ...new Set(
@@ -46,7 +51,7 @@ function extractLinkedContacts(store: CollectionStorage, c: CaseRecord, e: Evide
   ].slice(0, 60);
   if (!links.length) return;
   const text = links.join('\n');
-  store.addEvidence(c, Buffer.from(text), {
+  await store.addEvidence(c, Buffer.from(text), {
     name: 'contact-links.txt',
     mime: 'text/plain',
     kind: 'text',
@@ -65,7 +70,7 @@ export async function collectContactPages(
   const start = Date.now();
   const evidenceIds: string[] = [];
   const initial = c.evidence.filter((e) => e.mime === 'text/html');
-  for (const e of initial) extractLinkedContacts(store, c, e, store.read(c, e).toString());
+  for (const e of initial) await extractLinkedContacts(store, c, e, store.read(c, e).toString());
   const source =
     initial.find((e) => e.method === 'playwright-dom') ||
     initial.find((e) => e.method === 'http-get');
@@ -92,7 +97,7 @@ export async function collectContactPages(
         !String(result.headers['content-type']).toLowerCase().startsWith('text/html')
       )
         throw Error('PAGE_UNAVAILABLE');
-      const e = store.addEvidence(c, result.body, {
+      const e = await store.addEvidence(c, result.body, {
         name: 'contact-page.html',
         mime: 'text/html',
         kind: 'original',
@@ -100,7 +105,7 @@ export async function collectContactPages(
         sourceUrl: result.url,
       });
       evidenceIds.push(e.id);
-      extractLinkedContacts(store, c, e, result.body.toString());
+      await extractLinkedContacts(store, c, e, result.body.toString());
       await extraction.extract(c, e);
     } catch {
       failed++;

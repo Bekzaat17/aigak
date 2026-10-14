@@ -16,29 +16,32 @@ export class Templates implements TemplateCatalog {
     private validator: TemplateValidator,
     private builtin: BuiltinTemplate,
   ) {}
-  list() {
-    return [{ id: 'builtin', name: 'aigak · RU / KK', sha256: '' }, ...this.repository.list()];
+  async list() {
+    return [
+      { id: 'builtin', name: 'aigak · RU / KK', sha256: '' },
+      ...(await this.repository.list()),
+    ];
   }
-  has(id: string) {
-    return id === 'builtin' || !!this.repository.get(id);
+  async has(id: string) {
+    return id === 'builtin' || !!(await this.repository.get(id));
   }
   validate(data: Buffer) {
     this.validator.validate(data);
   }
-  add(name: string, data: Buffer) {
+  async add(name: string, data: Buffer) {
     this.validator.validate(data);
     const id = randomUUID();
     const hash = sha256(data);
-    const existing = this.repository.findByHash(hash);
+    const existing = await this.repository.findByHash(hash);
     if (existing) return existing;
     const entry = { id, name, sha256: hash };
     this.blobs.write('', `${id}.docx`, data);
-    this.repository.save({ ...entry, name: name.slice(0, 120) });
+    await this.repository.save({ ...entry, name: name.slice(0, 120) });
     return entry;
   }
   async raw(id: string, lang: Lang = 'ru') {
     if (id === 'builtin') return this.builtin.raw(lang);
-    const entry = this.repository.get(id);
+    const entry = await this.repository.get(id);
     if (!entry) throw new Error('NOT_FOUND');
     const data = this.blobs.read('', `${id}.docx`);
     if (sha256(data) !== entry.sha256) throw new Error('INTEGRITY_FAILED');

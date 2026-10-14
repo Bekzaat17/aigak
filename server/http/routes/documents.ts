@@ -9,8 +9,8 @@ export function documentsRoutes({
   documents,
 }: Pick<HttpDependencies, 'store' | 'documents'>) {
   const router = Router();
-  router.get('/api/cases/:id/preview', (req, res) => {
-    const c = store.get(req.params.id);
+  router.get('/api/cases/:id/preview', async (req, res) => {
+    const c = await store.get(req.params.id);
     if (!c) throw Error('NOT_FOUND');
     const lang = z.enum(['ru', 'kk']).default('ru').parse(req.query.lang);
     res.setHeader(
@@ -21,7 +21,7 @@ export function documentsRoutes({
     res.type('html').send(documents.preview(c, lang));
   });
   router.get('/api/cases/:id/document', async (req, res) => {
-    const c = store.get(req.params.id);
+    const c = await store.get(req.params.id);
     if (!c) throw Error('NOT_FOUND');
     const lang = z.enum(['ru', 'kk']).default('ru').parse(req.query.lang);
     const bytes = await documents.document(c, lang);
@@ -31,7 +31,7 @@ export function documentsRoutes({
       .send(bytes);
   });
   router.post('/api/cases/:id/export', async (req, res) => {
-    const c = store.get(req.params.id);
+    const c = await store.get(req.params.id);
     if (!c) throw new Error('NOT_FOUND');
     if (busyStatuses.includes(c.status)) throw new Error('CASE_BUSY');
     const data = await documents.archive(c);
@@ -39,8 +39,8 @@ export function documentsRoutes({
     res.setHeader('Content-Disposition', `attachment; filename="${c.number}.zip"`);
     res.send(data);
   });
-  router.get('/api/cases/:id/evidence/:evidenceId', (req, res) => {
-    const c = store.get(req.params.id);
+  router.get('/api/cases/:id/evidence/:evidenceId', async (req, res) => {
+    const c = await store.get(req.params.id);
     const e = c?.evidence.find((e) => e.id === req.params.evidenceId);
     if (!c || !e) throw new Error('NOT_FOUND');
     const data = store.read(c, e);

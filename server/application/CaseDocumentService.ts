@@ -38,7 +38,7 @@ export class CaseDocumentService implements CaseDocuments {
 
   async archive(record: CaseRecord, includePdf = true): Promise<Buffer> {
     this.store.verify(record);
-    this.store.event(
+    await this.store.event(
       record,
       'package.export.requested',
       record.status === 'verified' ? 'officer-reviewed draft' : 'unreviewed draft',

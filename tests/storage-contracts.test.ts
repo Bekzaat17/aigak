@@ -59,37 +59,38 @@ for (const adapter of ['memory', 'files'] as const) {
   });
 }
 
-test('case services work with substituted persistence and reject audit or evidence tampering', () => {
+test('case services work with substituted persistence and reject audit or evidence tampering', async () => {
   const records = new Map<string, CaseRecord>();
   const repository: CaseRepository = {
-    all: () => [...records.values()].map((record) => structuredClone(record)),
-    list: () => [],
-    get: (id) => {
+    nextNumber: async (year) => `AG-${year}-0001`,
+    all: async () => [...records.values()].map((record) => structuredClone(record)),
+    list: async () => [],
+    get: async (id) => {
       const record = records.get(id);
       return record && structuredClone(record);
     },
-    save: (record) => {
+    save: async (record) => {
       records.set(record.id, structuredClone(record));
     },
   };
   const audit = new AuditLog(repository);
   const evidence = new EvidenceService(memoryBlobs(), audit);
   const store = new Store(repository, audit, evidence, new CaseIntegrityVerifier(evidence));
-  const record = newCase(store, { title: 'Memory', sourceType: 'text', useAi: false });
-  const original = store.addEvidence(record, Buffer.from('source'), {
+  const record = await newCase(store, { title: 'Memory', sourceType: 'text', useAi: false });
+  const original = await store.addEvidence(record, Buffer.from('source'), {
     name: 'source.txt',
     mime: 'text/plain',
     kind: 'original',
     method: 'test',
   });
-  const restored = store.get(record.id)!;
+  const restored = (await store.get(record.id))!;
   assert.equal(restored.evidence[0].sha256, sha256(Buffer.from('source')));
   assert.equal(restored.audit.at(-1)?.action, 'evidence.saved');
   assert.equal(store.read(restored, original).toString(), 'source');
   store.verify(restored);
   restored.audit[0].detail = 'tampered';
   assert.throws(() => store.verify(restored), /INTEGRITY_FAILED/);
-  const corrupted = store.get(record.id)!;
+  const corrupted = (await store.get(record.id))!;
   corrupted.evidence[0].sha256 = 'wrong';
   assert.throws(() => store.verify(corrupted), /INTEGRITY_FAILED/);
 });
@@ -97,10 +98,10 @@ test('case services work with substituted persistence and reject audit or eviden
 test('template catalog substitutes validator, repository, blobs and builtin independently', async () => {
   const entries = new Map<string, TemplateEntry>();
   const repository: TemplateRepository = {
-    list: () => [...entries.values()],
-    get: (id) => entries.get(id),
-    findByHash: (hash) => [...entries.values()].find((entry) => entry.sha256 === hash),
-    save: (entry) => {
+    list: async () => [...entries.values()],
+    get: async (id) => entries.get(id),
+    findByHash: async (hash) => [...entries.values()].find((entry) => entry.sha256 === hash),
+    save: async (entry) => {
       entries.set(entry.id, entry);
     },
   };
@@ -117,15 +118,18 @@ test('template catalog substitutes validator, repository, blobs and builtin inde
     },
     { raw: async (lang) => Buffer.from(`builtin:${lang}`) },
   );
-  const entry = templates.add('Custom', Buffer.from('valid'));
-  assert.equal(templates.add('Duplicate', Buffer.from('valid')).id, entry.id);
+  const entry = await templates.add('Custom', Buffer.from('valid'));
+  assert.equal((await templates.add('Duplicate', Buffer.from('valid'))).id, entry.id);
   assert.equal(validationCalls, 2);
-  assert.equal(templates.list().length, 2);
-  assert.ok(templates.has(entry.id));
+  assert.equal((await templates.list()).length, 2);
+  assert.ok(await templates.has(entry.id));
   assert.equal((await templates.raw(entry.id)).toString(), 'valid');
   assert.equal((await templates.raw('builtin', 'kk')).toString(), 'builtin:kk');
-  assert.throws(() => templates.add('Invalid', Buffer.from('invalid')), /INVALID_TEMPLATE/);
-  assert.equal(templates.list().length, 2);
+  await assert.rejects(
+    async () => await templates.add('Invalid', Buffer.from('invalid')),
+    /INVALID_TEMPLATE/,
+  );
+  assert.equal((await templates.list()).length, 2);
   await assert.rejects(templates.raw('missing'), /NOT_FOUND/);
   entries.set(entry.id, { ...entry, sha256: 'tampered' });
   await assert.rejects(templates.raw(entry.id), /INTEGRITY_FAILED/);
@@ -171,12 +175,12 @@ test('local adapters read the previous SQLite and file layout without migrating 
   writeFileSync(templatePath, raw);
   const storage = createLocalStorage(directory);
   try {
-    const loaded = storage.store.get('old-case')!;
+    const loaded = (await storage.store.get('old-case'))!;
     assert.equal(loaded.analysisLevel, 'advanced');
     storage.store.verify(loaded);
-    assert.equal(storage.store.list()[0].evidenceCount, 1);
+    assert.equal((await storage.store.list())[0].evidenceCount, 1);
     assert.deepEqual(await storage.templates.raw('old-template'), raw);
-    assert.equal(storage.templates.add('Duplicate', raw).id, 'old-template');
+    assert.equal((await storage.templates.add('Duplicate', raw)).id, 'old-template');
     const reader = new DatabaseSync(filename, { readOnly: true });
     try {
       assert.equal(reader.prepare('SELECT body FROM cases WHERE id=?').get('old-case')?.body, body);
@@ -192,12 +196,12 @@ test('local adapters read the previous SQLite and file layout without migrating 
   }
 });
 
-test('failed immutable write leaves evidence metadata and audit unchanged', () => {
+test('failed immutable write leaves evidence metadata and audit unchanged', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'aigak-write-failure-'));
   const storage = createLocalStorage(directory);
   // A repository is unnecessary for this operation: the audit port must never be reached.
   try {
-    const record = newCase(storage.store, {
+    const record = await newCase(storage.store, {
       title: 'Failed write',
       sourceType: 'text',
       useAi: false,
@@ -214,7 +218,7 @@ test('failed immutable write leaves evidence metadata and audit unchanged', () =
       },
       { event: () => assert.fail('must not audit unsaved evidence') },
     );
-    assert.throws(
+    await assert.rejects(
       () =>
         evidence.addEvidence(record, Buffer.from('data'), {
           name: 'data.txt',

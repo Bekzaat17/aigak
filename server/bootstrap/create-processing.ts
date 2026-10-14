@@ -17,7 +17,7 @@ import { collectContactPages } from '../osint/site-pages.ts';
 import type { CaseStore } from '../application/ports/storage.ts';
 import { createExtraction } from './create-extraction.ts';
 
-export function createProcessing(store: CaseStore, dataDirectory: string, ai?: AiAnalyzer) {
+export async function createProcessing(store: CaseStore, dataDirectory: string, ai?: AiAnalyzer) {
   const extraction = createExtraction(store, dataDirectory);
   const processor = new CaseProcessingService(store, [
     new CollectionStage(
@@ -39,6 +39,6 @@ export function createProcessing(store: CaseStore, dataDirectory: string, ai?: A
     ),
     new InspectionStage(store, createInspectionFacade(ai)),
   ]);
-  processor.recoverInterrupted();
+  await processor.recoverInterrupted();
   return { processor, queue: new Queue(processor) };
 }

@@ -3,7 +3,7 @@ import type { CaseRecord, Decision } from '../../shared/types.ts';
 import { busyStatuses } from '../../shared/types.ts';
 import type { CaseStore } from './ports/storage.ts';
 
-export function reviewFinding(
+export async function reviewFinding(
   store: Pick<CaseStore, 'event' | 'verify'>,
   c: CaseRecord,
   id: string,
@@ -17,10 +17,10 @@ export function reviewFinding(
   f.note = note;
   c.status = 'review';
   delete c.reviewedAt;
-  store.event(c, 'finding.reviewed', `${f.id}: ${decision}; ${note}`);
+  await store.event(c, 'finding.reviewed', `${f.id}: ${decision}; ${note}`);
 }
 
-export function approveCase(
+export async function approveCase(
   store: Pick<CaseStore, 'event' | 'verify'>,
   c: CaseRecord,
   officer: string,
@@ -47,5 +47,5 @@ export function approveCase(
   c.notes = notes.trim();
   c.reviewedAt = new Date().toISOString();
   c.status = 'verified';
-  store.event(c, 'case.reviewed', `${c.officer}: ${c.notes}`);
+  await store.event(c, 'case.reviewed', `${c.officer}: ${c.notes}`);
 }

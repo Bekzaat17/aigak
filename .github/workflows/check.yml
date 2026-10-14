@@ -3,6 +3,20 @@ on: [push, pull_request]
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: aigak
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: aigak
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aigak -d aigak"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -11,3 +25,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run test:postgres
+        env:
+          TEST_DATABASE_URL: postgres://aigak:ci-test-only@127.0.0.1:5432/aigak

@@ -26,13 +26,13 @@ const validateAiFindings = (raw: unknown, evidence: Parameters<typeof parseAnaly
     evidence,
   ).findings;
 
-function fixture() {
+async function fixture() {
   const dir = mkdtempSync(path.join(tmpdir(), 'aigak-test-'));
   const storage = createLocalStorage(dir);
   const { store } = storage;
-  const c = newCase(store, { title: 'Проверка / Тексеру', sourceType: 'text', useAi: false });
+  const c = await newCase(store, { title: 'Проверка / Тексеру', sourceType: 'text', useAi: false });
   const text = 'Онлайн-казино. Бонус на первый депозит и фриспины. Ақша шығару. Ұтыс.';
-  const evidence = store.addEvidence(c, Buffer.from(text), {
+  const evidence = await store.addEvidence(c, Buffer.from(text), {
     name: 'source.txt',
     mime: 'text/plain',
     kind: 'original',
@@ -83,8 +83,8 @@ test('SSRF rejects private, loopback, special addresses, credentials, ports and 
 test('safe fetch rejects local endpoints before opening a connection', async () => {
   await assert.rejects(safeFetch('http://127.0.0.1'), /UNSAFE_URL/);
 });
-test('rules produce exact cited spans with no fabricated probability', () => {
-  const f = fixture();
+test('rules produce exact cited spans with no fabricated probability', async () => {
+  const f = await fixture();
   try {
     const findings = analyzeRules([f.evidence]);
     assert.ok(findings.length >= 3);
@@ -99,8 +99,8 @@ test('rules produce exact cited spans with no fabricated probability', () => {
     f.clean();
   }
 });
-test('AI cannot supply unsupported quotes, source IDs or out-of-range estimates', () => {
-  const f = fixture();
+test('AI cannot supply unsupported quotes, source IDs or out-of-range estimates', async () => {
+  const f = await fixture();
   try {
     const raw = {
       likelihood: 70,
@@ -136,38 +136,38 @@ test('AI cannot supply unsupported quotes, source IDs or out-of-range estimates'
     f.clean();
   }
 });
-test('review requires every decision and provenance/context, later edits invalidate approval', () => {
-  const f = fixture();
+test('review requires every decision and provenance/context, later edits invalidate approval', async () => {
+  const f = await fixture();
   try {
     f.c.status = 'review';
     f.c.findings = analyzeRules([f.evidence]);
-    assert.throws(
-      () => approveCase(f.store, f.c, 'Офицер', 'Проверено лично'),
+    await assert.rejects(
+      async () => await approveCase(f.store, f.c, 'Офицер', 'Проверено лично'),
       /REVIEW_INCOMPLETE/,
     );
     for (const x of f.c.findings)
-      reviewFinding(f.store, f.c, x.id, 'accepted', 'Сверено с оригиналом');
-    assert.throws(
-      () => approveCase(f.store, f.c, 'Офицер', 'Проверено лично'),
+      await reviewFinding(f.store, f.c, x.id, 'accepted', 'Сверено с оригиналом');
+    await assert.rejects(
+      async () => await approveCase(f.store, f.c, 'Офицер', 'Проверено лично'),
       /REVIEW_INCOMPLETE/,
     );
     f.c.clarifications.forEach((q) => (q.answer = 'yes'));
-    approveCase(f.store, f.c, 'Офицер', 'Проверено лично');
-    assert.equal(f.store.get(f.c.id)?.status, 'verified');
-    reviewFinding(f.store, f.c, f.c.findings[0].id, 'pending');
+    await approveCase(f.store, f.c, 'Офицер', 'Проверено лично');
+    assert.equal((await f.store.get(f.c.id))?.status, 'verified');
+    await reviewFinding(f.store, f.c, f.c.findings[0].id, 'pending');
     assert.equal(f.c.status, 'review');
     assert.equal(f.c.reviewedAt, undefined);
   } finally {
     f.clean();
   }
 });
-test('hash chain and original tampering are detected', () => {
-  const f = fixture();
+test('hash chain and original tampering are detected', async () => {
+  const f = await fixture();
   try {
     f.store.verify(f.c);
     f.c.audit[0].detail = 'changed';
     assert.throws(() => f.store.verify(f.c), /INTEGRITY_FAILED/);
-    const c = f.store.get(f.c.id)!;
+    const c = (await f.store.get(f.c.id))!;
     const file = path.join(f.dir, 'evidence', c.id, f.evidence.storedName);
     chmodSync(file, 0o600);
     writeFileSync(file, 'tampered');
@@ -176,33 +176,33 @@ test('hash chain and original tampering are detected', () => {
     f.clean();
   }
 });
-test('persisted intake survives reopening; interrupted work is marked failed', () => {
+test('persisted intake survives reopening; interrupted work is marked failed', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'aigak-restart-'));
   let storage = createLocalStorage(dir);
   let { store } = storage;
-  const c = newCase(store, { title: 'Restart', sourceType: 'text', useAi: false });
+  const c = await newCase(store, { title: 'Restart', sourceType: 'text', useAi: false });
   storage.close();
   storage = createLocalStorage(dir);
   store = storage.store;
-  createProcessing(store, dir);
-  assert.equal(store.get(c.id)?.status, 'failed');
-  store.verify(store.get(c.id)!);
+  await createProcessing(store, dir);
+  assert.equal((await store.get(c.id))?.status, 'failed');
+  store.verify((await store.get(c.id))!);
   storage.close();
   rmSync(dir, { recursive: true, force: true });
 });
 test('queue extracts a real text file and reaches inspector review', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
-    const q = createProcessing(f.store, f.dir).processor;
-    const c = newCase(f.store, { title: 'Queue test', sourceType: 'text', useAi: false });
-    f.store.addEvidence(c, Buffer.from('Құмар ойын. Ақша салу. Бонус. Бәс тігу.'), {
+    const q = (await createProcessing(f.store, f.dir)).processor;
+    const c = await newCase(f.store, { title: 'Queue test', sourceType: 'text', useAi: false });
+    await f.store.addEvidence(c, Buffer.from('Құмар ойын. Ақша салу. Бонус. Бәс тігу.'), {
       name: 'input.txt',
       mime: 'text/plain',
       kind: 'original',
       method: 'test',
     });
     await q.run(c.id);
-    const result = f.store.get(c.id)!;
+    const result = (await f.store.get(c.id))!;
     assert.equal(result.status, 'review');
     assert.ok(result.evidence.some((e) => e.kind === 'text'));
     assert.ok(result.findings.length >= 3);
@@ -212,13 +212,13 @@ test('queue extracts a real text file and reaches inspector review', async () =>
   }
 });
 test('templates validate, persist, render and reject missing/unknown fields or external links', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     const templates = f.templates;
     const raw = await defaultTemplate();
     templates.validate(raw);
-    const entry = templates.add('My template.docx', raw) as { id: string };
-    assert.ok(templates.has(entry.id));
+    const entry = (await templates.add('My template.docx', raw)) as { id: string };
+    assert.ok(await templates.has(entry.id));
     f.c.templateId = entry.id;
     f.c.findings = analyzeRules([f.evidence]);
     f.c.findings[0].note = 'Inspector comment';
@@ -255,14 +255,14 @@ test('templates validate, persist, render and reject missing/unknown fields or e
   }
 });
 test('export manifest covers originals, documents and review answers; HTML escapes input', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     f.c.status = 'review';
     f.c.title = '<script>alert(1)</script>';
     f.c.findings = analyzeRules([f.evidence]);
     f.c.clarifications[0].answer = 'unknown';
     f.c.clarifications[0].note = 'Need original URL';
-    f.store.save(f.c);
+    await f.store.save(f.c);
     const zip = await JSZip.loadAsync(await exportCase(f.store, f.templates, f.c, false));
     const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'));
     assert.equal(manifest.status, 'draft');

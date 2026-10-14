@@ -4,7 +4,7 @@ import { parsePublicUrl } from '../../domain/public-url.ts';
 import { newCase } from '../create-case.ts';
 import type { IntakeDependencies, UploadedFile } from './contracts.ts';
 import { intake } from './schema.ts';
-export function submitCase(
+export async function submitCase(
   { store, queue, templates }: IntakeDependencies,
   body: unknown,
   files: UploadedFile[],
@@ -12,14 +12,14 @@ export function submitCase(
   if (queue.pendingCount >= 20) throw Error('QUEUE_FULL');
   const input = intake.parse(body);
 
-  if (!templates.has(input.templateId)) throw new Error('NOT_FOUND');
+  if (!(await templates.has(input.templateId))) throw new Error('NOT_FOUND');
   if (input.sourceType === 'url') {
     input.sourceUrl = normalizeUrlInput(input.sourceUrl || '');
     parsePublicUrl(input.sourceUrl);
   }
   if (input.sourceType === 'text' && !input.text?.trim()) throw new Error('EMPTY_INPUT');
   if (input.sourceType === 'file' && !files.length) throw new Error('EMPTY_INPUT');
-  const c = newCase(store, {
+  const c = await newCase(store, {
     title: input.title,
     sourceType: input.sourceType,
     sourceUrl: input.sourceType === 'url' ? input.sourceUrl : undefined,
@@ -28,7 +28,7 @@ export function submitCase(
     templateId: input.templateId,
   });
   if (input.sourceType === 'text')
-    store.addEvidence(c, Buffer.from(input.text!), {
+    await store.addEvidence(c, Buffer.from(input.text!), {
       name: 'submitted-text.txt',
       mime: 'text/plain',
       kind: 'original',
@@ -37,7 +37,7 @@ export function submitCase(
   if (input.sourceType === 'file')
     for (const file of files) {
       const name = file.name;
-      store.addEvidence(c, file.buffer, {
+      await store.addEvidence(c, file.buffer, {
         name,
         mime: detectMime(file.buffer, name),
         kind: 'original',
@@ -45,5 +45,5 @@ export function submitCase(
       });
     }
   queue.add(c.id);
-  return store.get(c.id);
+  return await store.get(c.id);
 }

@@ -95,7 +95,7 @@ export class LegalCorpusService {
         source = this.sources[i];
       if (result.status === 'fulfilled') {
         const { response, norms } = result.value;
-        const raw = save(
+        const raw = await save(
           {
             name: source.id + '.html',
             mime: 'text/html',

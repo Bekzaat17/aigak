@@ -18,14 +18,14 @@ export async function collectUrl(
   const mime =
     declared === 'text/html' ? 'text/html' : detectMime(result.body, new URL(result.url).pathname);
   const ext = mime === 'text/html' ? 'html' : mime === 'application/pdf' ? 'pdf' : 'bin';
-  const original = store.addEvidence(c, result.body, {
+  const original = await store.addEvidence(c, result.body, {
     name: `response.${ext}`,
     mime,
     kind: 'original',
     method: 'http-get',
     sourceUrl: result.url,
   });
-  store.addEvidence(
+  await store.addEvidence(
     c,
     Buffer.from(
       JSON.stringify(
@@ -124,7 +124,7 @@ export async function collectUrl(
     await page.waitForLoadState('networkidle', { timeout: 2500 }).catch(() => {});
     const text = await page.locator('body').innerText();
     const dom = await page.content();
-    const domFile = store.addEvidence(c, Buffer.from(dom), {
+    const domFile = await store.addEvidence(c, Buffer.from(dom), {
       name: 'rendered.html',
       mime: 'text/html',
       kind: 'snapshot',
@@ -136,7 +136,7 @@ export async function collectUrl(
     if (text.trim()) {
       for (const e of c.evidence)
         if (e.kind === 'text' && e.parentId === original.id) delete e.text;
-      saveText(store, c, domFile, text, 'playwright-innerText');
+      await saveText(store, c, domFile, text, 'playwright-innerText');
     }
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
     const screenshot = await page.screenshot({
@@ -144,7 +144,7 @@ export async function collectUrl(
       type: 'png',
       timeout: 12000,
     });
-    store.addEvidence(c, screenshot, {
+    await store.addEvidence(c, screenshot, {
       name: 'page.png',
       mime: 'image/png',
       kind: 'snapshot',
@@ -152,7 +152,7 @@ export async function collectUrl(
       parentId: domFile.id,
     });
     const finalUrl = page.url();
-    store.addEvidence(
+    await store.addEvidence(
       c,
       Buffer.from(
         JSON.stringify(
@@ -197,6 +197,6 @@ export async function collectUrl(
     );
   } finally {
     await browser?.close();
-    store.save(c);
+    await store.save(c);
   }
 }

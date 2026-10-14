@@ -26,7 +26,11 @@ export function syncQuestions(c: CaseRecord) {
     evidenceIds: [],
   }));
 }
-export function startRevision(store: CaseStore, c: CaseRecord, level: CaseRecord['analysisLevel']) {
+export async function startRevision(
+  store: CaseStore,
+  c: CaseRecord,
+  level: CaseRecord['analysisLevel'],
+) {
   if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
   store.verify(c);
   c.revisions ??= [];
@@ -63,7 +67,7 @@ export function startRevision(store: CaseStore, c: CaseRecord, level: CaseRecord
   c.reanalysis = true;
   delete c.reviewedAt;
   delete c.legalReview;
-  store.event(
+  await store.event(
     c,
     'revision.started',
     `version ${c.revisions.length + 1}; ${level}; previous snapshot ${snapshot.sha256}`,

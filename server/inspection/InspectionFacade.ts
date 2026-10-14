@@ -43,7 +43,7 @@ export class InspectionFacade {
   async inspect(
     input: InspectionInput,
     onStage: ProgressObserver = () => {},
-    onStart: (stage: { id: string; name: Localized }) => void = () => {},
+    onStart: (stage: { id: string; name: Localized }) => void | Promise<void> = () => {},
   ): Promise<InspectionResult> {
     const strategy = this.strategies.create(input.analysisLevel);
     // Resolve all configuration up front: unknown plugins are deployment errors, not partial success.
@@ -65,7 +65,7 @@ export class InspectionFacade {
     const hasText = input.evidence.some((e) => e.text?.trim());
     try {
       for (const check of checks) {
-        onStart({ id: check.id, name: check.name });
+        await onStart({ id: check.id, name: check.name });
         const aiAttempts: AiAttempt[] = [];
         const start = Date.now();
         let result: CheckResult | undefined;
@@ -198,7 +198,7 @@ export class InspectionFacade {
             ru: `${check.name.ru}: ${summary.ru}`,
             kk: `${check.name.kk}: ${summary.kk}`,
           });
-        onStage(structuredClone(stage));
+        await onStage(structuredClone(stage));
       }
     } finally {
       clearTimeout(timer);

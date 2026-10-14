@@ -21,6 +21,10 @@
 
 Сборка пакета — отдельный сервис. Проверки, AI-провайдеры и форматы документов заменяются независимо.
 
+## PostgreSQL
+
+Основная база теперь PostgreSQL 18. Задайте приватный POSTGRES_PASSWORD и соответствующий DATABASE_URL в .env. Дела хранятся в PostgreSQL; файлы и OCR-модели остаются в DATA_DIR. Перед первым запуском выполните перенос существующей SQLite по [руководству](docs/POSTGRESQL.md). Docker Compose предоставляет локальную базу.
+
 ## Запуск
 
 Нужны **Node.js 22.13+**, npm и Google Chrome.
@@ -28,11 +32,12 @@
 ```bash
 npm ci
 cp .env.example .env
+npm run db:up
 npm run setup:ocr
 npm run dev
 ```
 
-Откройте [localhost:4317](http://localhost:4317). Данные хранятся локально в `data/`.
+Откройте [localhost:4317](http://localhost:4317). Файлы хранятся локально в `data/`, записи дел — в PostgreSQL.
 
 Для Продвинутой и Pro укажите `OPENAI_API_KEY` и `OPENAI_MODEL` в `.env`, затем перезапустите сервер. Другие модели и совместимые провайдеры подключаются через [AI Gateway](docs/AI_GATEWAY.md). Извлечённые тексты и материалы анализа передаются настроенному AI-провайдеру.
 

@@ -37,4 +37,4 @@ export interface OsintInput {
 export interface OsintResult {
   report: OsintReport;
 }
-export type SaveArtifact = (artifact: Artifact, collector: string) => Evidence;
+export type SaveArtifact = (artifact: Artifact, collector: string) => Evidence | Promise<Evidence>;

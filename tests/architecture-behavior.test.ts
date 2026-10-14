@@ -18,11 +18,15 @@ import { ProStrategy } from '../server/inspection/strategies/ProStrategy.ts';
 import { StrategyFactory } from '../server/inspection/strategies/StrategyFactory.ts';
 import { createLocalStorage } from '../server/bootstrap/create-local-storage.ts';
 
-function fixture() {
+async function fixture() {
   const directory = mkdtempSync(path.join(tmpdir(), 'aigak-architecture-'));
   const storage = createLocalStorage(directory);
   const { store } = storage;
-  const record = newCase(store, { title: 'Architecture test', sourceType: 'text', useAi: false });
+  const record = await newCase(store, {
+    title: 'Architecture test',
+    sourceType: 'text',
+    useAi: false,
+  });
   return {
     store,
     record,
@@ -62,13 +66,13 @@ test('queue schedules substituted processors serially without knowing storage or
 });
 
 test('processing accepts new stages and persists partial evidence on failure', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
     let reachedLast = false;
     const processor = new CaseProcessingService(f.store, [
       {
         async execute(record) {
-          f.store.addEvidence(record, Buffer.from('retained'), {
+          await f.store.addEvidence(record, Buffer.from('retained'), {
             name: 'test.txt',
             mime: 'text/plain',
             kind: 'original',
@@ -88,7 +92,7 @@ test('processing accepts new stages and persists partial evidence on failure', a
       },
     ]);
     await processor.run(f.record.id);
-    const result = f.store.get(f.record.id)!;
+    const result = (await f.store.get(f.record.id))!;
     assert.equal(result.status, 'failed');
     assert.equal(reachedLast, false);
     assert.equal(result.evidence.length, 1);
@@ -100,9 +104,9 @@ test('processing accepts new stages and persists partial evidence on failure', a
 });
 
 test('a new extractor handles a new format without modifying dispatch or using OCR', async () => {
-  const f = fixture();
+  const f = await fixture();
   try {
-    const evidence = f.store.addEvidence(f.record, Buffer.from('sample'), {
+    const evidence = await f.store.addEvidence(f.record, Buffer.from('sample'), {
       name: 'sample.custom',
       mime: 'application/x-custom',
       kind: 'original',
@@ -111,7 +115,7 @@ test('a new extractor handles a new format without modifying dispatch or using O
     const extractor: FileExtractor = {
       supports: (mime) => mime === 'application/x-custom',
       async extract({ store, record, evidence, data }) {
-        store.addEvidence(record, data, {
+        await store.addEvidence(record, data, {
           name: 'derived.txt',
           mime: 'text/plain',
           kind: 'text',
@@ -122,7 +126,7 @@ test('a new extractor handles a new format without modifying dispatch or using O
       },
     };
     await new FileExtractionService(f.store, [extractor]).extract(f.record, evidence);
-    const result = f.store.get(f.record.id)!;
+    const result = (await f.store.get(f.record.id))!;
     assert.equal(result.evidence[1].text, 'sample');
     assert.equal(result.evidence[1].parentId, evidence.id);
     f.store.verify(result);
@@ -150,7 +154,7 @@ test('registered strategies preserve the common contract and return independent 
 });
 
 test('HTTP app preserves access checks, intake, review, revisions and injected documents', async (t) => {
-  const f = fixture();
+  const f = await fixture();
   const queued: string[] = [];
   let pendingCount = 0;
   const dependencies: HttpDependencies = {
@@ -162,9 +166,9 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
       add: (id) => queued.push(id),
     },
     templates: {
-      list: () => [],
-      has: (id) => id === 'builtin',
-      add: () => ({ id: 'test', name: 'Test', sha256: '' }),
+      list: async () => [],
+      has: async (id) => id === 'builtin',
+      add: async () => ({ id: 'test', name: 'Test', sha256: '' }),
       raw: async () => Buffer.from('template'),
     },
     aiAnalyzer: { available: false },
@@ -252,9 +256,9 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
   assert.equal(created.status, 201);
   const record = JSON.parse(created.text);
   assert.deepEqual(queued, [record.id]);
-  const persisted = f.store.get(record.id)!;
+  const persisted = (await f.store.get(record.id))!;
   persisted.status = 'review';
-  f.store.save(persisted);
+  await f.store.save(persisted);
   const preview = await request(`/api/cases/${record.id}/preview`);
   assert.equal(preview.text, '<h1>Injected preview</h1>');
   assert.match(String(preview.headers['content-security-policy']), /sandbox/);
@@ -271,7 +275,7 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
       .status,
     200,
   );
-  assert.equal(f.store.get(record.id)?.materialsPending, true);
+  assert.equal((await f.store.get(record.id))?.materialsPending, true);
   const rerun = await request(`/api/cases/${record.id}/reanalyze`, 'POST', {
     analysisLevel: 'basic',
   });

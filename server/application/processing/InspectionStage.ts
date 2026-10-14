@@ -10,8 +10,8 @@ export class InspectionStage implements ProcessingStage {
     private readonly inspector: {
       inspect(
         input: InspectionInput,
-        onStage?: (stage: StageRecord) => void,
-        onStart?: (stage: { id: string; name: { ru: string; kk: string } }) => void,
+        onStage?: (stage: StageRecord) => void | Promise<void>,
+        onStart?: (stage: { id: string; name: { ru: string; kk: string } }) => void | Promise<void>,
       ): Promise<InspectionResult>;
     },
   ) {}
@@ -21,15 +21,19 @@ export class InspectionStage implements ProcessingStage {
       ru: 'Поиск признаков и проверка цитат',
       kk: 'Белгілерді іздеу және дәйексөздерді тексеру',
     };
-    this.store.event(c, 'analysis.started');
+    await this.store.event(c, 'analysis.started');
     const result = await this.inspector.inspect(
       c,
-      (stage) => {
-        this.store.event(c, 'inspection.stage', `${stage.id}@${stage.version}: ${stage.status}`);
+      async (stage) => {
+        await this.store.event(
+          c,
+          'inspection.stage',
+          `${stage.id}@${stage.version}: ${stage.status}`,
+        );
       },
-      (stage) => {
+      async (stage) => {
         c.step = stage.name;
-        this.store.event(c, 'inspection.started', stage.id);
+        await this.store.event(c, 'inspection.started', stage.id);
       },
     );
     c.findings = result.findings;

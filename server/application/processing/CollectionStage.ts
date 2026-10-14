@@ -11,7 +11,7 @@ export class CollectionStage implements ProcessingStage {
   async execute(c: CaseRecord): Promise<void> {
     c.status = 'collecting';
     c.step = { ru: 'Фиксация и извлечение текста', kk: 'Тіркеу және мәтінді алу' };
-    this.store.event(c, 'collection.started');
+    await this.store.event(c, 'collection.started');
     if (c.sourceType === 'url' && !c.reanalysis) await this.collectUrl(c);
     for (const e of [...c.evidence])
       if (e.kind === 'original' && !c.evidence.some((child) => child.parentId === e.id))

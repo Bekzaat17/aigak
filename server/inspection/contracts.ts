@@ -79,7 +79,7 @@ export type InspectionInput = Pick<
   CaseRecord,
   'analysisLevel' | 'evidence' | 'links' | 'osint' | 'followUps'
 >;
-export type ProgressObserver = (stage: InspectionStage) => void;
+export type ProgressObserver = (stage: InspectionStage) => void | Promise<void>;
 
 export interface CheckResolver {
   create(id: string): InspectionCheck;

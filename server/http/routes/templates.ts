@@ -8,7 +8,9 @@ export function templatesRoutes({
   upload,
 }: Pick<HttpDependencies, 'templates' | 'upload'>) {
   const router = Router();
-  router.get('/api/templates', (_req, res) => res.json({ templates: templates.list(), fields }));
+  router.get('/api/templates', async (_req, res) =>
+    res.json({ templates: await templates.list(), fields }),
+  );
   router.get('/api/templates/:id', async (req, res) => {
     const data = await templates.raw(req.params.id);
     res.setHeader(
@@ -18,11 +20,11 @@ export function templatesRoutes({
     res.setHeader('Content-Disposition', 'attachment; filename="aigak-template.docx"');
     res.send(data);
   });
-  router.post('/api/templates', upload.single('template'), (req, res) => {
+  router.post('/api/templates', upload.single('template'), async (req, res) => {
     if (!req.file) throw new Error('EMPTY_INPUT');
     res
       .status(201)
-      .json(templates.add(uploadName(req.file.originalname, Infinity), req.file.buffer));
+      .json(await templates.add(uploadName(req.file.originalname, Infinity), req.file.buffer));
   });
   return router;
 }

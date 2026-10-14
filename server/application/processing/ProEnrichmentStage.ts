@@ -23,52 +23,62 @@ export class ProEnrichmentStage implements ProcessingStage {
         ru: 'Сверяем реестр и сохраняем нормы закона',
         kk: 'Тізілімді салыстырып, заң нормаларын сақтаймыз',
       };
-      this.store.event(c, 'official.started');
-      await this.official.enrich(c.osint, (a, collector) =>
-        this.store.addEvidence(c, a.bytes, {
-          name: a.name,
-          mime: a.mime,
-          kind: 'metadata',
-          method: collector,
-          sourceUrl: a.sourceUrl,
-        }),
+      await this.store.event(c, 'official.started');
+      await this.official.enrich(
+        c.osint,
+        async (a, collector) =>
+          await this.store.addEvidence(c, a.bytes, {
+            name: a.name,
+            mime: a.mime,
+            kind: 'metadata',
+            method: collector,
+            sourceUrl: a.sourceUrl,
+          }),
       );
-      await this.legal.enrich(c.osint, (a, collector) =>
-        this.store.addEvidence(c, a.bytes, {
-          name: a.name,
-          mime: a.mime,
-          kind: 'metadata',
-          method: collector,
-          sourceUrl: a.sourceUrl,
-        }),
+      await this.legal.enrich(
+        c.osint,
+        async (a, collector) =>
+          await this.store.addEvidence(c, a.bytes, {
+            name: a.name,
+            mime: a.mime,
+            kind: 'metadata',
+            method: collector,
+            sourceUrl: a.sourceUrl,
+          }),
       );
       c.step = { ru: 'Проверка технических связей', kk: 'Техникалық байланыстарды тексеру' };
-      this.store.event(c, 'detective.started');
+      await this.store.event(c, 'detective.started');
       const sources = c.evidence.map((e) =>
         e.mime === 'text/html' && !e.method.startsWith('official-')
           ? { ...e, text: this.store.read(c, e).toString() }
           : e,
       );
-      await this.detective.investigate(c.osint, sources, (a, collector) =>
-        this.store.addEvidence(c, a.bytes, {
-          name: a.name,
-          mime: a.mime,
-          kind: 'metadata',
-          method: collector,
-          sourceUrl: a.sourceUrl,
-        }),
+      await this.detective.investigate(
+        c.osint,
+        sources,
+        async (a, collector) =>
+          await this.store.addEvidence(c, a.bytes, {
+            name: a.name,
+            mime: a.mime,
+            kind: 'metadata',
+            method: collector,
+            sourceUrl: a.sourceUrl,
+          }),
       );
-      await this.resources.investigate(c.osint, sources, (a, collector) =>
-        this.store.addEvidence(c, a.bytes, {
-          name: a.name,
-          mime: a.mime,
-          kind: a.text ? 'text' : 'metadata',
-          text: a.text,
-          method: collector,
-          sourceUrl: a.sourceUrl,
-        }),
+      await this.resources.investigate(
+        c.osint,
+        sources,
+        async (a, collector) =>
+          await this.store.addEvidence(c, a.bytes, {
+            name: a.name,
+            mime: a.mime,
+            kind: a.text ? 'text' : 'metadata',
+            text: a.text,
+            method: collector,
+            sourceUrl: a.sourceUrl,
+          }),
       );
     }
-    this.store.event(c, 'osint.completed', c.osint.status);
+    await this.store.event(c, 'osint.completed', c.osint.status);
   }
 }

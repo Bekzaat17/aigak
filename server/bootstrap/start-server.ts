@@ -8,43 +8,79 @@ import { createApp } from '../http/create-app.ts';
 import { createAiAnalyzer } from '../inspection/provider.ts';
 import { DocxRenderer } from '../package/adapters/DocxRenderer.ts';
 import { createPackageService } from '../package/index.ts';
-import { createLocalStorage } from './create-local-storage.ts';
+import { createPostgresStorage } from './create-postgres-storage.ts';
 import { createProcessing } from './create-processing.ts';
 
 export async function startServer() {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const port = Number(process.env.PORT || 4317);
   const dataDirectory = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
-  const { store, templates } = createLocalStorage(dataDirectory);
-  const aiAnalyzer = createAiAnalyzer();
-  const { queue } = createProcessing(store, dataDirectory, aiAnalyzer);
-  const documents = new CaseDocumentService(
-    store,
-    templates,
-    new DocxRenderer(),
-    createPackageService(browserOptions()),
-  );
-  const app = createApp(
-    {
+  const driver = process.env.STORAGE_DRIVER || 'postgres';
+  if (driver !== 'postgres' && driver !== 'sqlite') throw new Error('INVALID_STORAGE_DRIVER');
+  if (driver === 'postgres' && !process.env.DATABASE_URL) throw new Error('DATABASE_URL_REQUIRED');
+  const storage =
+    driver === 'sqlite'
+      ? (await import('./create-local-storage.ts')).createLocalStorage(dataDirectory)
+      : await createPostgresStorage(dataDirectory, process.env.DATABASE_URL!);
+  try {
+    const { store, templates } = storage;
+    const aiAnalyzer = createAiAnalyzer();
+    const { queue } = await createProcessing(store, dataDirectory, aiAnalyzer);
+    const documents = new CaseDocumentService(
       store,
-      queue,
-      aiAnalyzer,
       templates,
-      documents,
-      upload: multer({
-        storage: multer.memoryStorage(),
-        limits: { files: 5, fileSize: 10 * 1024 * 1024, fields: 8, fieldSize: 200000 },
-      }),
-    },
-    port,
-  );
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(root, 'dist')));
-    app.get('/{*path}', (_req, res) => res.sendFile(path.join(root, 'dist', 'index.html')));
-  } else {
-    const { createServer } = await import('vite');
-    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
-    app.use(vite.middlewares);
+      new DocxRenderer(),
+      createPackageService(browserOptions()),
+    );
+    const app = createApp(
+      {
+        store,
+        queue,
+        aiAnalyzer,
+        templates,
+        documents,
+        upload: multer({
+          storage: multer.memoryStorage(),
+          limits: { files: 5, fileSize: 10 * 1024 * 1024, fields: 8, fieldSize: 200000 },
+        }),
+      },
+      port,
+    );
+    let closeAssets = async () => {};
+    if (process.env.NODE_ENV === 'production') {
+      app.use(express.static(path.join(root, 'dist')));
+      app.get('/{*path}', (_req, res) => res.sendFile(path.join(root, 'dist', 'index.html')));
+    } else {
+      const { createServer } = await import('vite');
+      const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+      app.use(vite.middlewares);
+      closeAssets = () => vite.close();
+    }
+    const server = app.listen(port, '127.0.0.1', () =>
+      console.log(`aigak ready: http://localhost:${port}`),
+    );
+    const shutdown = () => server.close();
+    process.once('SIGTERM', shutdown);
+    process.once('SIGINT', shutdown);
+    let closing: Promise<void> | undefined;
+    const cleanup = () => {
+      process.off('SIGTERM', shutdown);
+      process.off('SIGINT', shutdown);
+      closing ??= (async () => {
+        try {
+          await queue.whenIdle();
+          await closeAssets();
+        } finally {
+          await storage.close();
+        }
+      })();
+      void closing.catch(() => console.error('STORAGE_CLOSE_FAILED'));
+    };
+    server.once('close', cleanup);
+    server.once('error', cleanup);
+    return server;
+  } catch (error) {
+    await storage.close();
+    throw error;
   }
-  return app.listen(port, '127.0.0.1', () => console.log(`aigak ready: http://localhost:${port}`));
 }
