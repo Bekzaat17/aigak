@@ -23,7 +23,24 @@ export function App() {
         {!current ? (
           <IntakeScreen {...controller} />
         ) : (
-          <CaseScreen {...controller} current={current} />
+          <CaseScreen
+            key={current.id}
+            current={current}
+            lang={controller.lang}
+            setCurrent={controller.setCurrent}
+            busy={controller.busy}
+            templates={controller.templates}
+            tab={controller.tab}
+            run={controller.run}
+            saveFinding={controller.saveFinding}
+            answerClarification={controller.answerClarification}
+            approveReview={controller.approveReview}
+            processing={controller.processing}
+            openTab={controller.openTab}
+            reviewFindings={controller.reviewFindings}
+            reset={controller.reset}
+            exportZip={controller.exportZip}
+          />
         )}
       </main>
       <footer className="footer">

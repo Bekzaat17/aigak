@@ -105,9 +105,48 @@ try {
   await page.getByRole('button', { name: /История/ }).click();
   await page.locator('.history-list button').first().click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  // Hold a mutation response while switching cases: it must not restore the old case.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const created = await page.request.post(`${origin}/api/cases`, {
+    headers: { 'X-Aigak-Client': 'local' },
+    multipart: {
+      title: 'UI isolation test',
+      sourceType: 'text',
+      text: 'Синтетический материал.',
+      analysisLevel: 'basic',
+      useAi: 'false',
+    },
+  });
+  assert.equal(created.status(), 201);
+  let releaseMutation;
+  let markHeld;
+  const held = new Promise((resolve) => {
+    markHeld = resolve;
+  });
+  const release = new Promise((resolve) => {
+    releaseMutation = resolve;
+  });
+  await page.route('**/findings/*', async (route) => {
+    const response = await route.fetch();
+    markHeld();
+    await release;
+    await route.fulfill({ response });
+  });
+  await page.getByRole('button', { name: 'Выводы', exact: false }).click();
+  await page.getByRole('button', { name: 'Отклонить', exact: true }).click();
+  await held;
+  try {
+    await page.getByRole('button', { name: /История/ }).click();
+    await page.locator('.history-list button').filter({ hasText: 'UI isolation test' }).click();
+    await page.getByRole('heading', { name: 'UI isolation test', exact: true }).waitFor();
+  } finally {
+    releaseMutation();
+  }
+  await page.waitForLoadState('networkidle');
+  assert.equal(await page.locator('.result-heading h1').innerText(), 'UI isolation test');
   assert.deepEqual(errors, []);
   console.log(
-    'UI smoke passed: demo, finding decision, package, preview, RU/KK, history/Escape, materials, mobile.',
+    'UI smoke passed: demo, finding decision, package, preview, RU/KK, history/Escape, materials, mobile, delayed mutation isolation.',
   );
 } finally {
   await browser?.close();
