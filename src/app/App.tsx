@@ -9,7 +9,16 @@ export function App() {
   const { t, current, error, setError, setDrawer, errMessage } = controller;
   return (
     <div className="app-shell">
-      <AppHeader {...controller} />
+      <AppHeader
+        lang={controller.lang}
+        setLang={controller.setLang}
+        t={controller.t}
+        records={controller.records}
+        setDrawer={controller.setDrawer}
+        run={controller.run}
+        refreshHistory={controller.refreshHistory}
+        reset={controller.reset}
+      />
       <main>
         {error && (
           <div className="error-banner" role="alert">
@@ -21,7 +30,31 @@ export function App() {
           </div>
         )}
         {!current ? (
-          <IntakeScreen {...controller} />
+          <IntakeScreen
+            lang={controller.lang}
+            mode={controller.mode}
+            setMode={controller.setMode}
+            url={controller.url}
+            setUrl={controller.setUrl}
+            text={controller.text}
+            setText={controller.setText}
+            files={controller.files}
+            setFiles={controller.setFiles}
+            busy={controller.busy}
+            ai={controller.ai}
+            analysisLevel={controller.analysisLevel}
+            setAnalysisLevel={controller.setAnalysisLevel}
+            setDrawer={controller.setDrawer}
+            templates={controller.templates}
+            templateId={controller.templateId}
+            setTemplateId={controller.setTemplateId}
+            drag={controller.drag}
+            setDrag={controller.setDrag}
+            uploadRef={controller.uploadRef}
+            openDemo={controller.openDemo}
+            addFiles={controller.addFiles}
+            start={controller.start}
+          />
         ) : (
           <CaseScreen
             key={current.id}
@@ -54,7 +87,27 @@ export function App() {
           <ArrowUpRight size={14} />
         </button>
       </footer>
-      {<AppDrawer {...controller} />}
+      {
+        <AppDrawer
+          lang={controller.lang}
+          records={controller.records}
+          busy={controller.busy}
+          error={controller.error}
+          ai={controller.ai}
+          drawer={controller.drawer}
+          setDrawer={controller.setDrawer}
+          templates={controller.templates}
+          templateFields={controller.templateFields}
+          templateId={controller.templateId}
+          setTemplateId={controller.setTemplateId}
+          query={controller.query}
+          setQuery={controller.setQuery}
+          templateRef={controller.templateRef}
+          openSavedCase={controller.openSavedCase}
+          changeTemplate={controller.changeTemplate}
+          errMessage={controller.errMessage}
+        />
+      }
     </div>
   );
 }

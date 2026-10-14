@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createDemo, getCase } from '../api/cases.ts';
+import { createDemo } from '../api/cases.ts';
 import { useAsyncAction } from '../hooks/useAsyncAction.ts';
 import { useCaseActions } from '../hooks/useCaseActions.ts';
 import { useCaseSession } from '../hooks/useCaseSession.ts';
@@ -28,7 +28,7 @@ export function useAppController() {
       selectCase(await createDemo());
       await refreshHistory();
     });
-  const openSavedCase = (id: string) => run(async () => selectCase(await getCase(id)));
+  const openSavedCase = (id: string) => run(() => session.loadCase(id));
   const changeTemplate = (file: File) => run(() => catalog.uploadTemplate(file));
   const errMessage =
     errors[error]?.[lang === 'ru' ? 0 : 1] ||

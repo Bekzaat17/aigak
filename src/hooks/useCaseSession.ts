@@ -11,6 +11,8 @@ export function useCaseSession(
 ) {
   const [current, setRecord] = useState<CaseRecord | null>(null);
   const navigationVersion = useRef(0);
+  const selectionRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => selectionRequest.current?.abort(), []);
   const [tab, setTab] = useState<CaseTab>('analysis');
   const processing = !!current && busyStatuses.includes(current.status);
   const currentId = current?.id;
@@ -76,6 +78,7 @@ export function useCaseSession(
     );
   };
   const selectCase = (record: CaseRecord) => {
+    selectionRequest.current?.abort();
     navigationVersion.current++;
     setRecord(record);
     window.location.hash = record.id;
@@ -84,10 +87,32 @@ export function useCaseSession(
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const reset = () => {
+    selectionRequest.current?.abort();
     navigationVersion.current++;
     setRecord(null);
     window.history.replaceState(null, '', window.location.pathname);
     setError('');
   };
-  return { current, setCurrent, processing, tab, openTab, reviewFindings, selectCase, reset };
+  const loadCase = async (id: string) => {
+    selectionRequest.current?.abort();
+    const request = new AbortController();
+    selectionRequest.current = request;
+    try {
+      const record = await getCase(id, request.signal);
+      if (!request.signal.aborted) selectCase(record);
+    } catch (error) {
+      if (!request.signal.aborted) throw error;
+    }
+  };
+  return {
+    current,
+    setCurrent,
+    processing,
+    tab,
+    openTab,
+    reviewFindings,
+    selectCase,
+    loadCase,
+    reset,
+  };
 }

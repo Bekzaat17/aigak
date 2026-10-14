@@ -1,9 +1,16 @@
 import { ArrowUpRight, History } from 'lucide-react';
-import type { AppController } from './useAppController.ts';
-type Props = Pick<
-  AppController,
-  'lang' | 'setLang' | 't' | 'records' | 'setDrawer' | 'run' | 'refreshHistory' | 'reset'
->;
+import type { CaseSummary, Lang } from '../../shared/types';
+import type { DrawerSection } from '../features/navigation/contracts.ts';
+type Props = {
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+  t: (ru: string, kk: string) => string;
+  records: CaseSummary[];
+  setDrawer: (section: DrawerSection | null) => void;
+  run: (action: () => Promise<void>) => Promise<void>;
+  refreshHistory: () => Promise<void>;
+  reset: () => void;
+};
 export function AppHeader({
   lang,
   setLang,

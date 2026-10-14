@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import type { CaseRecord, Lang } from '../../../shared/types';
-import { useCaseMutation } from '../../hooks/useCaseMutation';
+import { useLegalReview } from './useLegalReview.ts';
 
 export function LegalReviewForm({
   c,
@@ -11,34 +10,8 @@ export function LegalReviewForm({
   lang: Lang;
   onChange: (c: CaseRecord) => void;
 }) {
-  const mutate = useCaseMutation(c.id, onChange);
+  const { value, setValue, status, save } = useLegalReview(c, lang, onChange);
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
-  const [value, setValue] = useState(
-    c.legalReview || {
-      eventDate: '',
-      officer: c.officer,
-      note: (
-        c.inspection?.stages
-          .flatMap((s) => s.legalHypotheses || [])
-          .map((h) => {
-            const norm = c.osint?.legalNorms?.find((n) => n.id === h.normId);
-            return [
-              norm?.title?.[lang] || t('Об игорном бизнесе', 'Ойын бизнесі туралы'),
-              t('Статья', 'Бап') + ' ' + norm?.article,
-              h.reason[lang],
-              norm?.sourceUrl,
-              ...h.missing.map((m) => t('Проверить', 'Тексеру') + ': ' + m[lang]),
-            ]
-              .filter(Boolean)
-              .join('\n');
-          })
-          .join('\n\n') || ''
-      ).slice(0, 5000),
-      jurisdictionConfirmed: false,
-      editionConfirmed: false,
-    },
-  );
-  const [status, setStatus] = useState('');
   return (
     <section className="panel legal-review">
       <h3>
@@ -109,15 +82,7 @@ export function LegalReviewForm({
           value.officer.trim().length < 2 ||
           value.note.trim().length < 10
         }
-        onClick={async () => {
-          setStatus('saving');
-          try {
-            await mutate('legal-review', value);
-            setStatus('saved');
-          } catch {
-            setStatus('error');
-          }
-        }}
+        onClick={() => void save()}
       >
         {t('Сохранить правовую проверку', 'Құқықтық тексеруді сақтау')}
       </button>

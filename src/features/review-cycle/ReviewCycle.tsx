@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { levelName } from '../../../shared/inspection';
 import type { AnalysisLevel, CaseRecord, Lang } from '../../../shared/types';
-import { useCaseMutation } from '../../hooks/useCaseMutation';
+import { useReviewCycle } from './useReviewCycle.ts';
 import { FollowUpEditor } from './FollowUpEditor.tsx';
 
 export function ReviewCycle({
@@ -18,13 +17,8 @@ export function ReviewCycle({
   run: (fn: () => Promise<void>) => Promise<unknown>;
 }) {
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
-  const [text, setText] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [level, setLevel] = useState<AnalysisLevel>(c.analysisLevel);
-  const mutate = useCaseMutation(c.id, update);
-  const request = async (path: string, method: string, body: unknown) => {
-    await mutate(path, body, method);
-  };
+  const { text, setText, files, setFiles, level, setLevel, saveMaterials, saveAnswer, reanalyze } =
+    useReviewCycle(c, update, run);
 
   return (
     <section className="panel review-cycle">
@@ -42,9 +36,7 @@ export function ReviewCycle({
           c={c}
           lang={lang}
           busy={busy}
-          save={(answer, evidenceIds) =>
-            void run(() => request('questions/' + q.id, 'PATCH', { answer, evidenceIds }))
-          }
+          save={(answer, evidenceIds) => void saveAnswer(q.id, answer, evidenceIds)}
         />
       ))}
       <details>
@@ -66,16 +58,7 @@ export function ReviewCycle({
         <button
           className="secondary"
           disabled={busy || (!text.trim() && !files.length)}
-          onClick={() =>
-            void run(async () => {
-              const body = new FormData();
-              body.set('text', text);
-              files.forEach((f) => body.append('files', f));
-              await request('materials', 'POST', body);
-              setText('');
-              setFiles([]);
-            })
-          }
+          onClick={() => void saveMaterials()}
         >
           {t('Сохранить материалы', 'Материалдарды сақтау')}
         </button>
@@ -99,11 +82,7 @@ export function ReviewCycle({
             ))}
           </select>
         </label>
-        <button
-          className="primary"
-          disabled={busy}
-          onClick={() => void run(() => request('reanalyze', 'POST', { analysisLevel: level }))}
-        >
+        <button className="primary" disabled={busy} onClick={() => void reanalyze()}>
           {t('Повторить анализ', 'Талдауды қайталау')}
         </button>
       </div>

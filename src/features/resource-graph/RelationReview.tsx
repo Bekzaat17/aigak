@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import type { ResourceRelation } from '../../../shared/osint';
 import type { CaseRecord, Lang } from '../../../shared/types';
-import { useCaseMutation } from '../../hooks/useCaseMutation';
+import { useRelationReview } from './useRelationReview.ts';
 import { relationName } from './presentation.ts';
 
 export function RelationReview({
@@ -15,22 +14,8 @@ export function RelationReview({
   lang: Lang;
   onChange?: (c: CaseRecord) => void;
 }) {
-  const [note, setNote] = useState(r.note || '');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
-  const mutate = useCaseMutation(c.id, onChange);
+  const { note, setNote, busy, error, save } = useRelationReview(c, r, onChange);
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
-  const save = async (decision: string) => {
-    setBusy(true);
-    setError(false);
-    try {
-      await mutate(`relations/${r.id}`, { decision, note });
-    } catch {
-      setError(true);
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <div className="relation-review">
       <h4>
