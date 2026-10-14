@@ -13,8 +13,9 @@ import { parsePublicUrl, publicAddress, safeFetch } from '../server/network.ts';
 import { DocxRenderer } from '../server/package/adapters.ts';
 import { templateFields } from '../server/package/fields.ts';
 import { analyzeRules } from '../server/rules/engine.ts';
-import { Store, sha256 } from '../server/storage/Store.ts';
-import { Templates, defaultTemplate } from '../server/templates.ts';
+import { sha256 } from '../server/domain/sha256.ts';
+import { createLocalStorage } from '../server/bootstrap/create-local-storage.ts';
+import { defaultTemplate } from '../server/templates.ts';
 import { approveCase, newCase, reviewFinding } from '../server/workflow.ts';
 const validateAiFindings = (raw: unknown, evidence: Parameters<typeof parseAnalysis>[1]) =>
   parseAnalysis(
@@ -27,7 +28,8 @@ const validateAiFindings = (raw: unknown, evidence: Parameters<typeof parseAnaly
 
 function fixture() {
   const dir = mkdtempSync(path.join(tmpdir(), 'aigak-test-'));
-  const store = new Store(dir);
+  const storage = createLocalStorage(dir);
+  const { store } = storage;
   const c = newCase(store, { title: 'Проверка / Тексеру', sourceType: 'text', useAi: false });
   const text = 'Онлайн-казино. Бонус на первый депозит и фриспины. Ақша шығару. Ұтыс.';
   const evidence = store.addEvidence(c, Buffer.from(text), {
@@ -38,10 +40,10 @@ function fixture() {
     text,
   });
   const clean = () => {
-    store.close();
+    storage.close();
     rmSync(dir, { recursive: true, force: true });
   };
-  return { dir, store, c, evidence, text, clean };
+  return { dir, store, templates: storage.templates, c, evidence, text, clean };
 }
 test('SSRF rejects private, loopback, special addresses, credentials, ports and encodings', () => {
   for (const url of [
@@ -176,20 +178,22 @@ test('hash chain and original tampering are detected', () => {
 });
 test('persisted intake survives reopening; interrupted work is marked failed', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'aigak-restart-'));
-  let store = new Store(dir);
+  let storage = createLocalStorage(dir);
+  let { store } = storage;
   const c = newCase(store, { title: 'Restart', sourceType: 'text', useAi: false });
-  store.close();
-  store = new Store(dir);
-  createProcessing(store);
+  storage.close();
+  storage = createLocalStorage(dir);
+  store = storage.store;
+  createProcessing(store, dir);
   assert.equal(store.get(c.id)?.status, 'failed');
   store.verify(store.get(c.id)!);
-  store.close();
+  storage.close();
   rmSync(dir, { recursive: true, force: true });
 });
 test('queue extracts a real text file and reaches inspector review', async () => {
   const f = fixture();
   try {
-    const q = createProcessing(f.store).processor;
+    const q = createProcessing(f.store, f.dir).processor;
     const c = newCase(f.store, { title: 'Queue test', sourceType: 'text', useAi: false });
     f.store.addEvidence(c, Buffer.from('Құмар ойын. Ақша салу. Бонус. Бәс тігу.'), {
       name: 'input.txt',
@@ -210,7 +214,7 @@ test('queue extracts a real text file and reaches inspector review', async () =>
 test('templates validate, persist, render and reject missing/unknown fields or external links', async () => {
   const f = fixture();
   try {
-    const templates = new Templates(f.store);
+    const templates = f.templates;
     const raw = await defaultTemplate();
     templates.validate(raw);
     const entry = templates.add('My template.docx', raw) as { id: string };
@@ -259,7 +263,7 @@ test('export manifest covers originals, documents and review answers; HTML escap
     f.c.clarifications[0].answer = 'unknown';
     f.c.clarifications[0].note = 'Need original URL';
     f.store.save(f.c);
-    const zip = await JSZip.loadAsync(await exportCase(f.store, f.c, false));
+    const zip = await JSZip.loadAsync(await exportCase(f.store, f.templates, f.c, false));
     const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'));
     assert.equal(manifest.status, 'draft');
     assert.equal(manifest.officerReviewed, false);

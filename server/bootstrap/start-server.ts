@@ -8,17 +8,16 @@ import { createApp } from '../http/create-app.ts';
 import { createAiAnalyzer } from '../inspection/provider.ts';
 import { DocxRenderer } from '../package/adapters/DocxRenderer.ts';
 import { createPackageService } from '../package/index.ts';
-import { Store } from '../storage/Store.ts';
-import { Templates } from '../templates.ts';
+import { createLocalStorage } from './create-local-storage.ts';
 import { createProcessing } from './create-processing.ts';
 
 export async function startServer() {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const port = Number(process.env.PORT || 4317);
-  const store = new Store(path.resolve(process.env.DATA_DIR || path.join(root, 'data')));
+  const dataDirectory = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
+  const { store, templates } = createLocalStorage(dataDirectory);
   const aiAnalyzer = createAiAnalyzer();
-  const { queue } = createProcessing(store, aiAnalyzer);
-  const templates = new Templates(store);
+  const { queue } = createProcessing(store, dataDirectory, aiAnalyzer);
   const documents = new CaseDocumentService(
     store,
     templates,

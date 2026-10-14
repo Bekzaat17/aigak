@@ -1,9 +1,8 @@
 import { load } from 'cheerio';
 import type { OsintStage } from '../../shared/osint.ts';
 import type { CaseRecord, Evidence } from '../../shared/types.ts';
-import { extractFile } from '../collector.ts';
 import { parsePublicUrl, safeFetch } from '../network.ts';
-import { Store } from '../storage/Store.ts';
+import type { CollectionStorage, EvidenceExtractor } from '../collection/contracts.ts';
 
 export function contactPageLinks(html: string, base: string): string[] {
   const $ = load(html);
@@ -31,7 +30,7 @@ export function contactPageLinks(html: string, base: string): string[] {
   });
   return links;
 }
-function extractLinkedContacts(store: Store, c: CaseRecord, e: Evidence, html: string) {
+function extractLinkedContacts(store: CollectionStorage, c: CaseRecord, e: Evidence, html: string) {
   const $ = load(html);
   const links = [
     ...new Set(
@@ -58,7 +57,11 @@ function extractLinkedContacts(store: Store, c: CaseRecord, e: Evidence, html: s
   });
 }
 /** Application adapter: bounded same-origin pages; raw bytes and derived text remain separate evidence. */
-export async function collectContactPages(store: Store, c: CaseRecord): Promise<OsintStage> {
+export async function collectContactPages(
+  store: CollectionStorage,
+  c: CaseRecord,
+  extraction: EvidenceExtractor,
+): Promise<OsintStage> {
   const start = Date.now();
   const evidenceIds: string[] = [];
   const initial = c.evidence.filter((e) => e.mime === 'text/html');
@@ -98,7 +101,7 @@ export async function collectContactPages(store: Store, c: CaseRecord): Promise<
       });
       evidenceIds.push(e.id);
       extractLinkedContacts(store, c, e, result.body.toString());
-      await extractFile(store, c, e);
+      await extraction.extract(c, e);
     } catch {
       failed++;
     }

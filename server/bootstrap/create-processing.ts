@@ -14,18 +14,22 @@ import { createOsintFacade } from '../osint/index.ts';
 import { LegalCorpusService } from '../osint/LegalCorpusService.ts';
 import { OfficialSourcesService } from '../osint/OfficialSourcesService.ts';
 import { collectContactPages } from '../osint/site-pages.ts';
-import type { Store } from '../storage/Store.ts';
+import type { CaseStore } from '../application/ports/storage.ts';
 import { createExtraction } from './create-extraction.ts';
 
-export function createProcessing(store: Store, ai?: AiAnalyzer) {
-  const extraction = createExtraction(store, store.dir);
+export function createProcessing(store: CaseStore, dataDirectory: string, ai?: AiAnalyzer) {
+  const extraction = createExtraction(store, dataDirectory);
   const processor = new CaseProcessingService(store, [
     new CollectionStage(
       store,
-      (c) => collectUrl(store, c),
+      (c) => collectUrl(store, c, extraction),
       (c, e) => extraction.extract(c, e),
     ),
-    new ResourceProfileStage(store, (c) => collectContactPages(store, c), createOsintFacade()),
+    new ResourceProfileStage(
+      store,
+      (c) => collectContactPages(store, c, extraction),
+      createOsintFacade(),
+    ),
     new ProEnrichmentStage(
       store,
       new OfficialSourcesService(),

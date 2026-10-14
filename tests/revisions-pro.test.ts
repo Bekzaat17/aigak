@@ -13,7 +13,7 @@ import {
 import { parseLegalArticles } from '../server/osint/LegalCorpusService.ts';
 import { reportHtml } from '../server/package/html.ts';
 import { startRevision, syncQuestions } from '../server/revisions.ts';
-import { Store } from '../server/storage/Store.ts';
+import { createLocalStorage } from '../server/bootstrap/create-local-storage.ts';
 import { newCase } from '../server/workflow.ts';
 import { buildDossier } from '../shared/dossier.ts';
 import type { OsintReport } from '../shared/osint.ts';
@@ -43,7 +43,8 @@ const source = (text: string): Evidence => ({
 });
 test('revision freezes decisions and responses, invalidates approval, blocks overlapping runs', () => {
   const dir = mkdtempSync(join(tmpdir(), 'aigak-revision-'));
-  const store = new Store(dir);
+  const storage = createLocalStorage(dir);
+  const { store } = storage;
   try {
     const c = newCase(store, { title: 'QA', sourceType: 'text', useAi: false });
     c.status = 'verified';
@@ -62,7 +63,7 @@ test('revision freezes decisions and responses, invalidates approval, blocks ove
     c.revisions![0].followUps[0].answer = 'Tampered';
     assert.throws(() => store.verify(c), /INTEGRITY_FAILED/);
   } finally {
-    store.close();
+    storage.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -199,7 +200,8 @@ test('dossier never claims readiness with missing legal/AI context', () => {
 });
 test('HTML package preserves appendix anchors, inspector statements and escaped text', () => {
   const dir = mkdtempSync(join(tmpdir(), 'aigak-package-'));
-  const store = new Store(dir);
+  const storage = createLocalStorage(dir);
+  const { store } = storage;
   try {
     const c = newCase(store, { title: '<script>QA</script>', sourceType: 'text', useAi: false });
     c.evidence = [source('Text')];
@@ -216,7 +218,7 @@ test('HTML package preserves appendix anchors, inspector statements and escaped 
     assert.ok(html.includes('Ответ\nВторая строка'));
     assert.ok(!html.includes('<script>QA'));
   } finally {
-    store.close();
+    storage.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });

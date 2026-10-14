@@ -16,17 +16,18 @@ import { AdvancedStrategy } from '../server/inspection/strategies/AdvancedStrate
 import { BasicStrategy } from '../server/inspection/strategies/BasicStrategy.ts';
 import { ProStrategy } from '../server/inspection/strategies/ProStrategy.ts';
 import { StrategyFactory } from '../server/inspection/strategies/StrategyFactory.ts';
-import { Store } from '../server/storage/Store.ts';
+import { createLocalStorage } from '../server/bootstrap/create-local-storage.ts';
 
 function fixture() {
   const directory = mkdtempSync(path.join(tmpdir(), 'aigak-architecture-'));
-  const store = new Store(directory);
+  const storage = createLocalStorage(directory);
+  const { store } = storage;
   const record = newCase(store, { title: 'Architecture test', sourceType: 'text', useAi: false });
   return {
     store,
     record,
     close: () => {
-      store.close();
+      storage.close();
       rmSync(directory, { recursive: true, force: true });
     },
   };
@@ -163,7 +164,7 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
     templates: {
       list: () => [],
       has: (id) => id === 'builtin',
-      add: () => ({ id: 'test' }),
+      add: () => ({ id: 'test', name: 'Test', sha256: '' }),
       raw: async () => Buffer.from('template'),
     },
     aiAnalyzer: { available: false },

@@ -40,7 +40,7 @@ for (const file of ['server', 'shared', 'src'].flatMap(files)) {
       violations.push(`${file}: server must not depend on UI`);
     if (
       file.startsWith('server/application/') &&
-      /^(express|multer|playwright|tesseract.js|node:(fs|sqlite|http|https|dns)|server\/(http|bootstrap|storage|collection)\/)/.test(
+      /^(express|multer|playwright|tesseract.js|docxtemplater|pizzip|node:(fs|sqlite|http|https|dns)|server\/(http|bootstrap|storage|collection|templates)\/)/.test(
         target,
       )
     )

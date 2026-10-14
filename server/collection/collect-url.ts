@@ -2,13 +2,16 @@ import { load } from 'cheerio';
 import { chromium } from 'playwright';
 import type { CaseRecord } from '../../shared/types.ts';
 import { safeFetch } from '../network.ts';
-import { Store } from '../storage/Store.ts';
+import type { CollectionStorage, EvidenceExtractor } from '../collection/contracts.ts';
 import { browserOptions } from './browser-options.ts';
 import { detectMime } from './detect-mime.ts';
-import { extractFile } from './extract-file.ts';
 import { issue, saveText } from './text-evidence.ts';
 
-export async function collectUrl(store: Store, c: CaseRecord) {
+export async function collectUrl(
+  store: CollectionStorage,
+  c: CaseRecord,
+  extraction: EvidenceExtractor,
+) {
   const result = await safeFetch(c.sourceUrl!);
   c.redirects = result.redirects;
   const declared = String(result.headers['content-type'] || '').split(';')[0];
@@ -52,7 +55,7 @@ export async function collectUrl(store: Store, c: CaseRecord) {
       `Сервер вернул HTTP ${result.status}; содержимое может быть страницей ошибки.`,
       `Сервер HTTP ${result.status} қайтарды; мазмұн қате беті болуы мүмкін.`,
     );
-  await extractFile(store, c, original);
+  await extraction.extract(c, original);
   if (mime !== 'text/html') return;
   const $ = load(result.body.toString());
   c.links = [

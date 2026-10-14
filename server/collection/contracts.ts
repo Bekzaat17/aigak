@@ -20,3 +20,7 @@ export interface OcrEngine {
   readonly available: boolean;
   recognize(data: Buffer): Promise<string>;
 }
+
+export interface EvidenceExtractor {
+  extract(record: CaseRecord, evidence: Evidence): Promise<void>;
+}
