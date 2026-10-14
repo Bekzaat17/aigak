@@ -1,3 +1,4 @@
+import { verifiedFindingScreenshot } from '../../shared/finding-screenshot.ts';
 import { aiStageDetails } from '../../shared/inspection-presentation.ts';
 import { levelName } from '../../shared/inspection.ts';
 import { osintSummary } from '../../shared/osint.ts';
@@ -123,7 +124,7 @@ export function reportHtml(c: PackageDocument, lang: Lang) {
         <h3>${escape(c.title)}</h3>
         <p>
           ${t('Источник', 'Дереккөз')}:
-          ${escape(c.sourceUrl || t('Загруженный материал; URL не установлен', 'Жүктелген материал; URL анықталмаған'))}<br />${t('Получено', 'Алынған уақыты')}:
+          ${c.sourceUrl ? `<a href="${escape(c.sourceUrl)}">${escape(c.sourceUrl)}</a>` : t('URL не установлен', 'URL анықталмаған')}<br />${t('Получено', 'Алынған уақыты')}:
           ${escape(c.createdAt)} (UTC)<br />${t('Метод анализа', 'Талдау әдісі')}:
           ${c.engine === 'ai' ? 'AI' : 'Rules / ' + (c.inspection?.stages.find((s) => s.id === 'rules')?.version || 'legacy')}<br />${t('Внутренняя проверка', 'Ішкі тексеру')}:
           ${c.status === 'verified' ? t('выполнена', 'орындалды') : t('не завершена', 'аяқталмады')}<br />${t('Офицер', 'Қызметкер')}:
@@ -134,11 +135,12 @@ export function reportHtml(c: PackageDocument, lang: Lang) {
           ${t('Предварительная оценка AI', 'AI алдын ала бағасы')}:
           ${c.likelihood === null ? t('не рассчитана', 'есептелмеген') : c.likelihood + '% · ' + t('не откалибрована', 'калибрленбеген')}
         </p>
+        ${(c.osint?.legalNorms || []).map((n) => `<p><a href="${escape(n.sourceUrl)}">${escape(n.title?.[lang] || n.documentId || n.id)} · ${t('статья', 'бап')} ${escape(n.article)}</a> · ${escape(n.documentId || n.id)}</p>`).join('')}
         ${c.analysisLevel === 'pro' ? '<h2>Pro</h2><p>' + escape(dossierText(c, lang)) + '</p>' : ''}
         ${c.inspection ? `<h2>${t('Ход анализа', 'Талдау барысы')} · ${escape(levelName(c.analysisLevel)[lang])}</h2><p>${c.inspection.status === 'partial' ? t('Частичная проверка', 'Ішінара тексеру') : t('Проверки завершены', 'Тексерулер аяқталды')}</p>${c.inspection.stages.map((s) => `<h3>${escape(s.name[lang])}</h3><p>${escape(s.status)} · v${escape(s.version)} · ${s.durationMs} ms</p><p>${escape(s.summary[lang])}</p><p>${escape(aiStageDetails(s, lang))}</p>`).join('')}` : ''}
         ${c.osint ? '<h2>OSINT</h2><p>' + escape(osintSummary(c.osint, lang)) + '</p>' : ''}
         <h2>${t('1. Наблюдения и проверка', '1. Бақылаулар және тексеру')}</h2>
-        ${c.findings.length ? c.findings.map((f, i) => `<div class="finding"><h3>${i + 1}. ${escape(f.title[lang])}</h3>${f.scope === 'related' ? `<p>${t('Находка на другом ресурсе; не доказательство содержимого исходного сайта.', 'Басқа ресурстағы белгі; бастапқы сайт мазмұнының дәлелі емес.')}</p>` : ''}<p>${escape(decision(f.decision))} · ${escape(f.engine)}</p><blockquote>${escape(f.quote)}</blockquote><p>${escape(f.explanation[lang])}</p><p>${t('Комментарий инспектора', 'Инспектор түсініктемесі')}: ${escape(f.note || '—')}</p><p class="muted">${t('Материал', 'Материал')}: <a href="#appendix-${appendixNumber(c, f.evidenceId)}">${t('Приложение', 'Қосымша')} ${appendixNumber(c, f.evidenceId)}</a> · ${t('Символы', 'Таңбалар')} [${f.start}, ${f.end})</p>${f.region ? `<p>${t('Ручная отметка инспектора · приложение', 'Инспектордың қол белгісі · қосымша')} ${appendixNumber(c, f.region.evidenceId)}</p>${image(f.region.evidenceId, f.region)}` : ''}</div>`).join('') : `<p>${t('Подтверждённых признаков нет. Это не подтверждение законности ресурса.', 'Расталған белгілер жоқ. Бұл ресурстың заңдылығын растамайды.')}</p>`}
+        ${c.findings.length ? c.findings.map((f, i) => `<div class="finding"><h3>${i + 1}. ${escape(f.title[lang])}</h3>${f.scope === 'related' ? `<p>${t('Находка на другом ресурсе; не доказательство содержимого исходного сайта.', 'Басқа ресурстағы белгі; бастапқы сайт мазмұнының дәлелі емес.')}</p>` : ''}<p>${escape(decision(f.decision))} · ${escape(f.engine)}</p><blockquote>${escape(f.quote)}</blockquote><p>${escape(f.explanation[lang])}</p><p>${t('Комментарий инспектора', 'Инспектор түсініктемесі')}: ${escape(f.note || '—')}</p><p class="muted">${t('Материал', 'Материал')}: <a href="#appendix-${appendixNumber(c, f.evidenceId)}">${t('Приложение', 'Қосымша')} ${appendixNumber(c, f.evidenceId)}</a> · ${t('Символы', 'Таңбалар')} [${f.start}, ${f.end})</p>${verifiedFindingScreenshot(f, c.evidence) ? image(verifiedFindingScreenshot(f, c.evidence)!.id) : ''}${f.region ? `<p>${t('Ручная отметка инспектора · приложение', 'Инспектордың қол белгісі · қосымша')} ${appendixNumber(c, f.region.evidenceId)}</p>${image(f.region.evidenceId, f.region)}` : ''}</div>`).join('') : `<p>${t('Подтверждённых признаков нет. Это не подтверждение законности ресурса.', 'Расталған белгілер жоқ. Бұл ресурстың заңдылығын растамайды.')}</p>`}
         <h2>${t('2. Опись материалов', '2. Материалдар тізімдемесі')}</h2>
         <table>
           <thead>

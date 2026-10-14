@@ -27,7 +27,9 @@ export class ChatCompletionsAdapter implements ModelAdapter {
           { role: 'system', content: r.instructions },
           { role: 'user', content: r.input },
         ],
-        max_tokens: p.maxOutputTokens,
+        ...(p.reasoningEffort === undefined
+          ? { max_tokens: p.maxOutputTokens }
+          : { max_completion_tokens: p.maxOutputTokens, reasoning_effort: p.reasoningEffort }),
         ...(p.temperature === undefined ? {} : { temperature: p.temperature }),
         response_format: {
           type: 'json_schema',

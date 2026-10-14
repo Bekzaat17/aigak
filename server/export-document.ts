@@ -1,3 +1,4 @@
+import { currentIssues } from '../shared/current-issues.ts';
 import type { CaseRecord, Lang } from '../shared/types.ts';
 import type { PackageDocument } from './package/contracts.ts';
 import { reportHtml as renderHtml } from './package/html.ts';
@@ -19,7 +20,7 @@ export function packageDocument(c: CaseRecord): PackageDocument {
     likelihood: c.likelihood,
     evidence: c.evidence,
     findings: c.findings,
-    issues: c.issues,
+    issues: currentIssues(c),
     inspection: c.inspection,
     osint: c.osint,
     audit: c.audit,

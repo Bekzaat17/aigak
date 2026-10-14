@@ -1,3 +1,4 @@
+import { LegalSourceLink } from './LegalSourceLink';
 import { ArrowRight, Download, ShieldCheck } from 'lucide-react';
 import type { CaseRecord, Lang } from '../../../shared/types';
 
@@ -48,8 +49,7 @@ export function LawWorkspace({
           <article className="finding-detail" key={i}>
             <span className="eyebrow">{t('ПРАВОВАЯ ГИПОТЕЗА', 'ҚҰҚЫҚТЫҚ БОЛЖАМ')}</span>
             <h2>
-              {t('Статья', 'Бап')} {norm?.article || '—'} ·{' '}
-              {norm?.title?.[lang] || t('Об игорном бизнесе', 'Ойын бизнесі туралы')}
+              <LegalSourceLink norm={norm} lang={lang} />
             </h2>
             <p>{h.reason[lang]}</p>
             <details>
@@ -118,7 +118,7 @@ export function LawWorkspace({
           </summary>
           {c.osint.legalNorms.map((n) => (
             <p key={n.id}>
-              {t('Статья', 'Бап')} {n.article} ·{' '}
+              <LegalSourceLink norm={n} lang={lang} /> ·{' '}
               <a href={`/api/cases/${c.id}/evidence/${n.evidenceId}`} download>
                 {t('Сохранённый официальный текст', 'Сақталған ресми мәтін')}
               </a>

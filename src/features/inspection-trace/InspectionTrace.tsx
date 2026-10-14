@@ -6,8 +6,9 @@ type Props = {
   inspection: NonNullable<CaseRecord['inspection']>;
   analysisLevel: CaseRecord['analysisLevel'];
   lang: Lang;
+  norms?: NonNullable<CaseRecord['osint']>['legalNorms'];
 };
-export function InspectionTrace({ inspection, analysisLevel, lang }: Props) {
+export function InspectionTrace({ inspection, analysisLevel, lang, norms }: Props) {
   const t = translator(lang);
   return (
     <details className="inspection-trace panel">
@@ -21,7 +22,7 @@ export function InspectionTrace({ inspection, analysisLevel, lang }: Props) {
         {t('Этапов ИИ', 'AI кезеңдері')}: {inspection.aiCalls}
       </p>
       {inspection.stages.map((stage) => (
-        <InspectionStageDetail key={stage.id} stage={stage} lang={lang} />
+        <InspectionStageDetail key={stage.id} stage={stage} lang={lang} norms={norms} />
       ))}
     </details>
   );

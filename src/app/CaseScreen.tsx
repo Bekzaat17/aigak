@@ -1,3 +1,4 @@
+import { CollectionQuality } from '../features/case-workspace/CollectionQuality';
 import { AnalysisProgress } from '../AnalysisProgress';
 import { FindingsWorkspace } from '../features/case-workspace/FindingsWorkspace.tsx';
 import { LawWorkspace } from '../features/case-workspace/LawWorkspace.tsx';
@@ -6,6 +7,7 @@ import { ResultSummary } from '../features/case-workspace/ResultSummary.tsx';
 import { CaseHeader } from '../features/case-workspace/CaseHeader.tsx';
 import { CaseTabs } from '../features/case-workspace/CaseTabs.tsx';
 import { AnalysisLimitations } from '../features/case-workspace/AnalysisLimitations.tsx';
+import { AnalysisMetrics } from '../features/inspection-trace/AnalysisMetrics.tsx';
 import { CaseTechnicalDetails } from '../features/inspection-trace/CaseTechnicalDetails.tsx';
 import { PackageWorkspace } from '../features/review/PackageWorkspace.tsx';
 import { ProDossier } from '../features/dossier/ProDossier.tsx';
@@ -43,6 +45,8 @@ export function CaseScreen({
       ) : (
         <>
           <ResultSummary c={current} lang={lang} onReview={reviewFindings} />
+          <CollectionQuality c={current} lang={lang} />
+          <AnalysisMetrics current={current} lang={lang} />
           {current.analysisLevel === 'pro' && (
             <ProDossier c={current} lang={lang} onReview={() => openTab('package')} />
           )}

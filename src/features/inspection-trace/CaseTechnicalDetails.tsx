@@ -2,7 +2,10 @@ import type { CaseRecord, Lang } from '../../../shared/types';
 import { translator } from '../../i18n/translate.ts';
 import { AuditTimeline } from './AuditTimeline.tsx';
 import { InspectionTrace } from './InspectionTrace.tsx';
-type Props = { current: Pick<CaseRecord, 'inspection' | 'analysisLevel' | 'audit'>; lang: Lang };
+type Props = {
+  current: Pick<CaseRecord, 'inspection' | 'analysisLevel' | 'audit' | 'osint'>;
+  lang: Lang;
+};
 export function CaseTechnicalDetails({ current, lang }: Props) {
   const t = translator(lang);
   return (
@@ -16,6 +19,7 @@ export function CaseTechnicalDetails({ current, lang }: Props) {
       {current.inspection && (
         <InspectionTrace
           inspection={current.inspection}
+          norms={current.osint?.legalNorms}
           analysisLevel={current.analysisLevel}
           lang={lang}
         />

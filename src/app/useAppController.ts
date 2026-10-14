@@ -21,7 +21,7 @@ export function useAppController() {
   const session = useCaseSession(setError, refreshHistory, () => drawer.setDrawer(null));
   const { current, setCurrent, selectCase } = session;
   const actions = useCaseActions(current, setCurrent, run, refreshHistory);
-  const intake = useIntake({ t, setError, run, templateId, selectCase, refreshHistory });
+  const intake = useIntake({ run, templateId, selectCase, refreshHistory });
   const [query, setQuery] = useState('');
   const openDemo = () =>
     run(async () => {

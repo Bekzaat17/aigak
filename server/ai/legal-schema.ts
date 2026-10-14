@@ -33,14 +33,15 @@ export const legalOutputSchema = {
     assessment: bilingual,
     hypotheses: {
       type: 'array',
+      maxItems: 2,
       items: {
         type: 'object',
         properties: {
           normId: { type: 'string' },
-          normQuote: { type: 'string' },
+          normQuote: { type: 'string', minLength: 3, maxLength: 600 },
           findingIds: { type: 'array', items: { type: 'string' } },
           reason: bilingual,
-          missing: { type: 'array', items: bilingual },
+          missing: { type: 'array', minItems: 1, maxItems: 3, items: bilingual },
         },
         required: ['normId', 'normQuote', 'findingIds', 'reason', 'missing'],
         additionalProperties: false,

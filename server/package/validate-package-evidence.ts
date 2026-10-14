@@ -1,3 +1,4 @@
+import { verifiedFindingScreenshot } from '../../shared/finding-screenshot.ts';
 import { assertGroundedFinding } from '../domain/assert-grounded-finding.ts';
 import type { PackageInput } from './contracts.ts';
 import { sha256 as hash } from '../domain/sha256.ts';
@@ -19,6 +20,12 @@ export function validatePackageEvidence(
       throw new Error('INTEGRITY_FAILED');
   }
   for (const finding of c.findings) assertGroundedFinding(finding, c.evidence);
+  for (const finding of c.findings)
+    if (
+      finding.visualEvidence?.status === 'verified' &&
+      !verifiedFindingScreenshot(finding, c.evidence)
+    )
+      throw new Error('SCREENSHOT_PROVENANCE_MISSING');
   if (c.osint) {
     const references = [
       ...(c.osint.legalNorms || []).map((n) => n.evidenceId),

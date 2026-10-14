@@ -1,3 +1,4 @@
+import { reliableContentAssessment } from '../../shared/content-assessment.ts';
 import { assertGroundedFinding } from '../domain/assert-grounded-finding.ts';
 import type { AiAttempt, Finding, InspectionStage, Localized } from '../../shared/types.ts';
 import type { AiTask } from '../ai/contracts.ts';
@@ -204,8 +205,14 @@ export class InspectionFacade {
         kk: 'Талдау үшін алынған мәтін жеткіліксіз.',
       });
     // A partial run must not look like a confident, completed investigation.
-    const partial = stages.some((s) => s.status !== 'completed') || !hasText;
-    if (partial) likelihood = null;
+    const partial =
+      stages.some((s) => s.status !== 'completed') ||
+      !hasText ||
+      (!!input.collection && input.collection.status !== 'adequate');
+    const contentReliable = reliableContentAssessment(stages, input.collection);
+    const finalReview =
+      stages.find((s) => s.id === 'pro_review') || stages.find((s) => s.id === 'verification');
+    if (!contentReliable || (partial && !finalReview?.review)) likelihood = null;
     return {
       findings,
       assessment,

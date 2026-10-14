@@ -26,6 +26,9 @@ const profile = z
     maxOutputTokens: z.number().int().min(256).max(12000).default(4500),
     retries: z.number().int().min(0).max(1).default(0),
     temperature: z.number().min(0).max(2).optional(),
+    reasoningEffort: z
+      .enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+      .optional(),
   })
   .strict();
 const chain = z.array(z.string().min(1)).min(1).max(2);
@@ -74,7 +77,8 @@ export function loadAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfigurat
         adapter: 'responses',
         baseUrl: 'https://api.openai.com/v1',
         apiKeyEnv: 'OPENAI_API_KEY',
-        model: env.OPENAI_MODEL || 'gpt-4.1-mini',
+        model: env.OPENAI_MODEL || 'gpt-6-luna',
+        reasoningEffort: env.OPENAI_REASONING_EFFORT || (env.OPENAI_MODEL ? undefined : 'low'),
       },
     },
     routes: { context: ['default'], mechanics: ['default'], verification: ['default'] },

@@ -2,12 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Evidence } from '../../shared/types.ts';
 import { AiError } from './contracts.ts';
-export const SCHEMA_VERSION = 'inspection/2.0.0';
+export const SCHEMA_VERSION = 'inspection/2.1.0';
 const bi = z.object({ ru: z.string().min(1).max(1500), kk: z.string().min(1).max(1500) }).strict();
 const quote = { evidenceId: z.string().min(1), quote: z.string().min(3).max(1000) };
 const schema = z
   .object({
-    likelihood: z.number().min(0).max(100),
+    likelihood: z.number().int().min(0).max(100),
     assessment: bi,
     findings: z
       .array(
@@ -41,7 +41,13 @@ const reference = { evidenceId: { type: 'string' }, quote: { type: 'string' } };
 export const outputSchema = {
   type: 'object',
   properties: {
-    likelihood: { type: 'number' },
+    likelihood: {
+      type: 'integer',
+      minimum: 0,
+      maximum: 100,
+      description:
+        'Whole percentage points from 0 to 100. For example 99 means 99 percent; never return a 0-to-1 fraction.',
+    },
     assessment: bilingual,
     findings: {
       type: 'array',

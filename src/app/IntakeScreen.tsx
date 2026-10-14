@@ -2,23 +2,14 @@ import { ArrowRight, ArrowUpRight, LockKeyhole, Loader2, Sparkles } from 'lucide
 import { translator } from '../i18n/translate.ts';
 import type { IntakeScreenProps } from '../features/intake/contracts.ts';
 import { UrlSourceInput } from '../features/intake/UrlSourceInput.tsx';
-import { FileSourceInput } from '../features/intake/FileSourceInput.tsx';
-import { TextSourceInput } from '../features/intake/TextSourceInput.tsx';
 import { IntakeIntroduction } from '../features/intake/IntakeIntroduction.tsx';
 import { IntakeSteps } from '../features/intake/IntakeSteps.tsx';
-import { SourceTypeTabs } from '../features/intake/SourceTypeTabs.tsx';
 import { AnalysisLevelSelector } from '../features/intake/AnalysisLevelSelector.tsx';
 import { IntakeTemplateSelector } from '../features/intake/IntakeTemplateSelector.tsx';
 export function IntakeScreen({
   lang,
-  mode,
-  setMode,
   url,
   setUrl,
-  text,
-  setText,
-  files,
-  setFiles,
   busy,
   ai,
   analysisLevel,
@@ -27,11 +18,7 @@ export function IntakeScreen({
   templates,
   templateId,
   setTemplateId,
-  drag,
-  setDrag,
-  uploadRef,
   openDemo,
-  addFiles,
   start,
 }: IntakeScreenProps) {
   const t = translator(lang);
@@ -39,21 +26,8 @@ export function IntakeScreen({
     <>
       <IntakeIntroduction lang={lang} />
       <form className="intake-card" onSubmit={start}>
-        <SourceTypeTabs lang={lang} mode={mode} setMode={setMode} />
         <div className="input-area">
-          {mode === 'url' && <UrlSourceInput lang={lang} url={url} setUrl={setUrl} />}
-          {mode === 'file' && (
-            <FileSourceInput
-              lang={lang}
-              files={files}
-              setFiles={setFiles}
-              drag={drag}
-              setDrag={setDrag}
-              uploadRef={uploadRef}
-              addFiles={addFiles}
-            />
-          )}
-          {mode === 'text' && <TextSourceInput lang={lang} text={text} setText={setText} />}
+          <UrlSourceInput lang={lang} url={url} setUrl={setUrl} />
         </div>
         <IntakeTemplateSelector
           lang={lang}
@@ -73,11 +47,7 @@ export function IntakeScreen({
             <LockKeyhole size={15} />
             {t('Оригиналы хранятся локально', 'Түпнұсқалар жергілікті сақталады')}
           </span>
-          <button
-            className="primary"
-            disabled={busy || (mode === 'file' && !files.length)}
-            type="submit"
-          >
+          <button className="primary" disabled={busy || !url.trim()} type="submit">
             {busy ? <Loader2 className="spin" size={18} /> : <Sparkles size={18} />}{' '}
             {t('Анализировать', 'Талдау')}
             <ArrowRight size={18} />

@@ -53,9 +53,22 @@ export function SourcePreview({
           <pre>{e.text}</pre>
         </details>
       )}
+      {e.sourceUrl && (
+        <a href={e.sourceUrl} target="_blank" rel="noreferrer">
+          {e.sourceUrl}
+        </a>
+      )}
       <details>
         <summary>{t('Источник и целостность файла', 'Дереккөз және файл тұтастығы')}</summary>
-        <p>{e.sourceUrl || t('Загруженный материал', 'Жүктелген материал')}</p>
+        <p>
+          {e.sourceUrl ? (
+            <a href={e.sourceUrl} target="_blank" rel="noreferrer">
+              {e.sourceUrl}
+            </a>
+          ) : (
+            t('Загруженный материал', 'Жүктелген материал')
+          )}
+        </p>
         <code>SHA-256: {e.sha256}</code>
       </details>
       {e.mime.startsWith('image/') && (

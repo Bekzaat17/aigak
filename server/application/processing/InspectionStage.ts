@@ -1,3 +1,5 @@
+import { currentIssues } from '../../../shared/current-issues.ts';
+import { currentEvidence } from '../../../shared/current-evidence.ts';
 import type { CaseRecord, InspectionStage as StageRecord } from '../../../shared/types.ts';
 import type { InspectionInput, InspectionResult } from '../../inspection/contracts.ts';
 import { syncQuestions } from '../../revisions.ts';
@@ -24,7 +26,7 @@ export class InspectionStage implements ProcessingStage {
     };
     await this.store.event(c, 'analysis.started');
     const result = await this.inspector.inspect(
-      c,
+      { ...c, evidence: currentEvidence(c) },
       async (stage) => {
         await this.store.event(
           c,
@@ -42,9 +44,11 @@ export class InspectionStage implements ProcessingStage {
     c.likelihood = result.likelihood;
     c.engine = result.engine;
     c.inspection = result.run;
+    c.issues = currentIssues(c);
     c.issues.push(...result.issues);
     syncQuestions(c);
     c.reanalysis = false;
+    c.refreshSources = false;
     c.materialsPending = false;
   }
 }

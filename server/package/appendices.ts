@@ -6,7 +6,13 @@ export function appendixNumber(c: PackageDocument, id: string) {
 export function previewImages(c: PackageDocument, read: (id: string) => Buffer) {
   const images: Record<string, string> = {};
   let remaining = 24 * 1024 * 1024;
-  for (const e of c.evidence.filter((e) => e.mime.startsWith('image/'))) {
+  const ordered = c.evidence
+    .filter((e) => e.mime.startsWith('image/'))
+    .sort(
+      (a, b) =>
+        Number(b.method === 'finding-screenshot') - Number(a.method === 'finding-screenshot'),
+    );
+  for (const e of ordered) {
     if (e.size > remaining) continue;
     const bytes = read(e.id);
     remaining -= bytes.length;

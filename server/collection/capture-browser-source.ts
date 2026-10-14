@@ -1,107 +1,97 @@
 import { chromium } from 'playwright';
-import type { CaseRecord, Evidence } from '../../shared/types.ts';
-import type { CollectionStorage } from './contracts.ts';
+import type { CaseRecord } from '../../shared/types.ts';
+import type { CollectionStorage, EvidenceExtractor } from './contracts.ts';
 import { browserOptions } from './browser-options.ts';
 import { installBrowserNetworkPolicy } from './install-browser-network-policy.ts';
-import { issue, saveText } from './text-evidence.ts';
+import { saveText } from './text-evidence.ts';
+import { waitForPageContent } from './wait-for-page-content.ts';
+import { capturePageScreenshots } from './capture-page-screenshots.ts';
+import { pageTextQuality } from '../../shared/collection.ts';
 
 export async function captureBrowserSource(
-  store: CollectionStorage,
+  store: Pick<CollectionStorage, 'addEvidence'>,
   c: CaseRecord,
-  original: Evidence,
-  sourceUrl: string,
+  extraction: EvidenceExtractor,
+  viewport: { width: number; height: number },
+  prefix: string,
+  signal: AbortSignal,
 ) {
-  // Links are leads, not evidence about those destinations. Never auto-follow them.
-  let browser;
+  const browser = await chromium.launch(browserOptions());
+  const abort = () => {
+    void browser.close().catch(() => {});
+  };
+  signal.addEventListener('abort', abort, { once: true });
   try {
-    browser = await chromium.launch(browserOptions());
+    signal.throwIfAborted();
     const context = await browser.newContext({
-      viewport: { width: 1440, height: 1000 },
+      viewport,
       locale: 'ru-RU',
       timezoneId: 'Asia/Almaty',
       serviceWorkers: 'block',
       acceptDownloads: false,
     });
-    await installBrowserNetworkPolicy(context);
+    const network = await installBrowserNetworkPolicy(context, signal);
     const page = await context.newPage();
     page.setDefaultTimeout(12000);
-    await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: 22000 });
-    await page.waitForLoadState('networkidle', { timeout: 2500 }).catch(() => {});
+    await page.goto(c.sourceUrl!, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await waitForPageContent(page);
+    signal.throwIfAborted();
     const text = await page.locator('body').innerText();
-    const dom = await page.content();
-    const domFile = await store.addEvidence(c, Buffer.from(dom), {
-      name: 'rendered.html',
+    const original = [...c.evidence]
+      .reverse()
+      .find((e) => e.method === 'http-get' && e.mime === 'text/html');
+    const dom = await store.addEvidence(c, Buffer.from(await page.content()), {
+      name: `${prefix}-rendered.html`,
       mime: 'text/html',
       kind: 'snapshot',
       method: 'playwright-dom',
-      parentId: original.id,
+      parentId: original?.id,
       sourceUrl: page.url(),
     });
-    // Prefer rendered text, keeping the HTTP text in the archive but avoiding duplicate findings.
-    if (text.trim()) {
-      for (const e of c.evidence)
-        if (e.kind === 'text' && e.parentId === original.id) delete e.text;
-      await saveText(store, c, domFile, text, 'playwright-innerText');
+    const links = await page
+      .locator('a[href]')
+      .evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).href));
+    c.links = [...new Set([...c.links, ...links.filter((url) => /^https?:\/\//.test(url))])].slice(
+      0,
+      100,
+    );
+    await saveText(store, c, dom, text, 'playwright-innerText');
+    const textEvidence = c.evidence.find((e) => e.parentId === dom.id && e.kind === 'text');
+    if (textEvidence) await capturePageScreenshots(page, store, c, dom, textEvidence, prefix);
+    // OCR is a distinct fallback for image/canvas content, never a substitute for readable DOM.
+    if (pageTextQuality(text) === 'limited') {
+      for (const image of c.evidence.filter((e) => e.parentId === dom.id && e.mime === 'image/png'))
+        await extraction.extract(c, image);
     }
-    const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    const screenshot = await page.screenshot({
-      fullPage: height <= 16000,
-      type: 'png',
-      timeout: 12000,
-    });
-    await store.addEvidence(c, screenshot, {
-      name: 'page.png',
-      mime: 'image/png',
-      kind: 'snapshot',
-      method: 'playwright-screenshot',
-      parentId: domFile.id,
-    });
-    const finalUrl = page.url();
     await store.addEvidence(
       c,
       Buffer.from(
         JSON.stringify(
           {
-            url: finalUrl,
+            url: page.url(),
             capturedAt: new Date().toISOString(),
-            viewport: { width: 1440, height: 1000 },
-            fullPage: height <= 16000,
+            viewport,
             browserVersion: browser.version(),
             locale: 'ru-RU',
-            timezone: 'Asia/Almaty',
-            networkPolicy: 'public HTTP GET, no cookies, no WebSockets; 60 requests / 30 MiB',
+            quality: pageTextQuality(text),
+            networkPolicy: 'Public GET only; pinned DNS; 600 requests / 100 MiB / 90 seconds',
+            network,
           },
           null,
           2,
         ),
       ),
       {
-        name: 'browser-metadata.json',
+        name: `${prefix}-metadata.json`,
         mime: 'application/json',
         kind: 'metadata',
         method: 'playwright',
-        parentId: domFile.id,
+        parentId: dom.id,
+        sourceUrl: page.url(),
       },
     );
-    issue(
-      c,
-      'Браузерная фиксация ограничивает сетевые запросы; часть динамического содержимого может отсутствовать.',
-      'Браузерлік тіркеу желілік сұрауларды шектейді; динамикалық мазмұнның бір бөлігі болмауы мүмкін.',
-    );
-    if (height > 16000)
-      issue(
-        c,
-        'Очень длинная страница: сохранён снимок первого экрана.',
-        'Өте ұзын бет: бірінші экранның суреті сақталды.',
-      );
-  } catch {
-    issue(
-      c,
-      'Браузерный снимок не получен. HTTP-оригинал сохранён; для сложной страницы загрузите скриншот вручную.',
-      'Браузер суреті алынбады. HTTP түпнұсқасы сақталды; күрделі бет үшін скриншотты қолмен жүктеңіз.',
-    );
   } finally {
-    await browser?.close();
-    await store.save(c);
+    signal.removeEventListener('abort', abort);
+    await browser.close();
   }
 }

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { CaseRecord, Finding, Lang } from '../../../shared/types';
 import { findingImage, linkedHypotheses } from '../../case-view';
 import { RegionEditor } from '../../RegionEditor';
+import { LegalSourceLink } from './LegalSourceLink';
 import { SourcePreview } from './SourcePreview.tsx';
 
 export function FindingDetail({
@@ -50,6 +51,13 @@ export function FindingDetail({
       <section>
         <h3>{t('Что найдено в материале', 'Материалда не табылды')}</h3>
         <blockquote className="finding-quote">«{f.quote}»</blockquote>
+        {source?.sourceUrl && (
+          <p>
+            <a href={source.sourceUrl} target="_blank" rel="noreferrer">
+              {source.sourceUrl}
+            </a>
+          </p>
+        )}
         <p className="muted">
           {t('Точная цитата из сохранённого текста', 'Сақталған мәтіннен алынған нақты дәйексөз')}
         </p>
@@ -57,12 +65,14 @@ export function FindingDetail({
           <>
             <p className="preview-label">
               <Image size={16} />
-              {image.method === 'playwright-screenshot'
-                ? t(
-                    'Снимок той же страницы · без разметки цитаты',
-                    'Сол беттің суреті · дәйексөз белгіленбеген',
-                  )
-                : t('Изображение, из которого получен текст', 'Мәтін алынған кескін')}
+              {image.capture
+                ? t('Снимок участка с цитатой · текст перепроверен', 'Белгі мәтіні бар бет экраны')
+                : image.method === 'playwright-screenshot'
+                  ? t(
+                      'Снимок той же страницы · без разметки цитаты',
+                      'Сол беттің суреті · дәйексөз белгіленбеген',
+                    )
+                  : t('Изображение, из которого получен текст', 'Мәтін алынған кескін')}
             </p>
             <SourcePreview c={c} e={image} lang={lang} />
             <RegionEditor c={c} f={f} image={image} lang={lang} onChange={onChange} />
@@ -76,6 +86,14 @@ export function FindingDetail({
             </summary>
             <SourcePreview c={c} e={source} lang={lang} />
           </details>
+        )}
+        {!image && source && (
+          <p className="muted">
+            {t(
+              'Снимок с этой цитатой не зафиксирован; доступен сохранённый текст.',
+              'Осы дәйексөз бар сурет тіркелмеген; сақталған мәтін қолжетімді.',
+            )}
+          </p>
         )}
         {!source && (
           <p>
@@ -91,8 +109,10 @@ export function FindingDetail({
           <h3>{t('Связь с законом', 'Заңмен байланыс')}</h3>
           {hypotheses.map((h, i) => (
             <p key={i}>
-              {t('Статья', 'Бап')}{' '}
-              {c.osint?.legalNorms?.find((n) => n.id === h.normId)?.article || '—'} ·{' '}
+              <LegalSourceLink
+                norm={c.osint?.legalNorms?.find((n) => n.id === h.normId)}
+                lang={lang}
+              />{' '}
               {h.reason[lang]}
             </p>
           ))}

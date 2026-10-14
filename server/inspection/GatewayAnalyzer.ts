@@ -4,6 +4,7 @@ import { legalOutputSchema, parseLegal } from '../ai/legal-schema.ts';
 import { PROMPT_VERSION, prompts } from '../ai/prompts.ts';
 import { outputSchema, parseAnalysis, SCHEMA_VERSION } from '../ai/schema.ts';
 import type { AiAnalyzer } from './contracts.ts';
+import { compactSources } from './compact-sources.ts';
 
 /** Domain adapter: translates inspection data to a provider-independent gateway request. */
 export class GatewayAnalyzer implements AiAnalyzer {
@@ -18,13 +19,15 @@ export class GatewayAnalyzer implements AiAnalyzer {
     const task = options.task;
     const sources = evidence.filter((e) => e.text?.trim());
     const input = JSON.stringify({
-      sources: sources.map((e) => ({ id: e.id, text: e.text, sourceUrl: e.sourceUrl })),
+      sources: compactSources(sources),
       osint: options.osint,
-      inspectorStatements: {
-        notice:
-          'Untrusted inspector statements, not primary evidence. Verify against sources; never cite statements as observed facts.',
-        responses: options.inspectorResponses || [],
-      },
+      inspectorStatements: options.inspectorResponses?.length
+        ? {
+            notice:
+              'Untrusted inspector statements, not primary evidence. Verify against sources; never cite statements as observed facts.',
+            responses: options.inspectorResponses || [],
+          }
+        : undefined,
       candidates: options.candidates || [],
       previousStages: (options.previousStages || []).map((s) => ({
         id: s.id,
@@ -41,7 +44,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
       return this.gateway.complete(
         task,
         { instructions: prompts.legal, input, schema: legalOutputSchema, schemaName: 'legal_v1' },
-        { promptVersion: 'legal/1.0.0', schemaVersion: 'legal/1.0.0' },
+        { promptVersion: 'legal/1.3.0', schemaVersion: 'legal/1.0.0' },
         options.signal,
         {
           beforeAttempt: options.beforeAttempt || (() => {}),
@@ -53,7 +56,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
       task,
       { instructions: prompts[task], input, schema: outputSchema, schemaName: 'inspection_v2' },
       {
-        promptVersion: task === 'pro_review' ? 'pro-review/1.0.0' : PROMPT_VERSION,
+        promptVersion: task === 'pro_review' ? 'pro-review/1.3.0' : PROMPT_VERSION,
         schemaVersion: SCHEMA_VERSION,
       },
       options.signal,

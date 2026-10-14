@@ -1,3 +1,4 @@
+import { formatDuration } from '../../lib/format-duration';
 import type { CaseRecord, Lang } from '../../../shared/types';
 import { displayObservations } from '../../../shared/osint-presentation';
 import { observationGroups } from './observation-groups.ts';
@@ -62,7 +63,9 @@ export function OsintPanel({
           {t('Полнота и ограничения источников', 'Дереккөздердің толықтығы мен шектеулері')}
         </summary>
         {r.stages.map((stage) => (
-          <p key={stage.id}>{stage.summary[lang]}</p>
+          <p key={stage.id}>
+            {stage.summary[lang]} · {formatDuration(stage.durationMs, lang)}
+          </p>
         ))}
       </details>
     </section>

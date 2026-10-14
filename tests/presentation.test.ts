@@ -53,7 +53,7 @@ test('DNS and certificates render readable values instead of serialized objects'
       .includes('raw'),
   );
 });
-test('preview associates the actual OCR image or contextual page, not an unrelated screenshot', () => {
+test('preview uses the actual OCR source but rejects unverified contextual screenshots', () => {
   const evidence = [
     { id: 'http', method: 'http-get', mime: 'text/html' },
     { id: 'dom', method: 'playwright-dom', parentId: 'http', mime: 'text/html' },
@@ -63,7 +63,7 @@ test('preview associates the actual OCR image or contextual page, not an unrelat
   ] as Evidence[];
   const c = { evidence } as CaseRecord;
   const f = { evidenceId: 'text' } as Finding;
-  assert.equal(findingImage(c, f)?.id, 'shot');
+  assert.equal(findingImage(c, f), undefined);
   assert.equal(
     findingImage({ ...c, evidence: evidence.filter((e) => e.id !== 'shot') }, f),
     undefined,

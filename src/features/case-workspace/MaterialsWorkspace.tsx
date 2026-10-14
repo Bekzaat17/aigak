@@ -30,7 +30,10 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
             );
   };
   const chosen =
-    list.find((e) => e.id === selected) || list.find((e) => e.mime.startsWith('image/')) || list[0];
+    list.find((e) => e.id === selected) ||
+    list.find((e) => e.mime.startsWith('image/') && materialFindings(c, e).length > 0) ||
+    list.find((e) => e.capture?.quality === 'adequate') ||
+    list[0];
   const title = (e: Evidence) =>
     e.method === 'playwright-screenshot'
       ? t('Снимок страницы', 'Беттің суреті')

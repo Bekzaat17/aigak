@@ -27,6 +27,7 @@ export class ResponsesAdapter implements ModelAdapter {
         instructions: r.instructions,
         input: r.input,
         max_output_tokens: p.maxOutputTokens,
+        ...(p.reasoningEffort === undefined ? {} : { reasoning: { effort: p.reasoningEffort } }),
         ...(p.temperature === undefined ? {} : { temperature: p.temperature }),
         text: {
           format: { type: 'json_schema', name: r.schemaName, strict: true, schema: r.schema },

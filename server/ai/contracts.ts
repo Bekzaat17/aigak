@@ -10,6 +10,7 @@ export interface ModelProfile {
   maxOutputTokens: number;
   retries: number;
   temperature?: number;
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 }
 export interface AiConfiguration {
   profiles: Record<string, ModelProfile>;

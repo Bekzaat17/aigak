@@ -4,11 +4,12 @@ import { legal } from './legal.ts';
 import { mechanics } from './mechanics.ts';
 import { pro_review } from './pro_review.ts';
 import { verification } from './verification.ts';
-export const PROMPT_VERSION = 'advanced/1.2.0';
+import { sourceFormat } from './source-format.ts';
+export const PROMPT_VERSION = 'advanced/1.5.0';
 export const prompts: Record<AiTask, string> = {
-  legal,
-  pro_review,
-  context,
-  mechanics,
-  verification,
+  legal: legal + sourceFormat,
+  pro_review: pro_review + sourceFormat,
+  context: context + sourceFormat,
+  mechanics: mechanics + sourceFormat,
+  verification: verification + sourceFormat,
 };

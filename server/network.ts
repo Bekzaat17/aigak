@@ -22,6 +22,7 @@ export async function safeFetch(
   maxBytes = 8 * 1024 * 1024,
   hops = 5,
   signal?: AbortSignal,
+  requestHeaders: Readonly<Record<string, string>> = {},
 ): Promise<CaptureResponse> {
   let current = value;
   const redirects: CaptureResponse['redirects'] = [];
@@ -45,6 +46,21 @@ export async function safeFetch(
             'User-Agent': 'aigak/0.1 (public evidence collection)',
             'Accept-Encoding': 'identity',
             Accept: '*/*',
+            ...Object.fromEntries(
+              Object.entries(requestHeaders).filter(
+                ([key, value]) =>
+                  [
+                    'accept',
+                    'accept-language',
+                    'origin',
+                    'referer',
+                    'user-agent',
+                    'sec-fetch-dest',
+                    'sec-fetch-mode',
+                    'sec-fetch-site',
+                  ].includes(key.toLowerCase()) && value.length <= 4096,
+              ),
+            ),
           },
           lookup: ((
             _host: string,

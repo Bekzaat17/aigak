@@ -32,14 +32,8 @@ export function App() {
         {!current ? (
           <IntakeScreen
             lang={controller.lang}
-            mode={controller.mode}
-            setMode={controller.setMode}
             url={controller.url}
             setUrl={controller.setUrl}
-            text={controller.text}
-            setText={controller.setText}
-            files={controller.files}
-            setFiles={controller.setFiles}
             busy={controller.busy}
             ai={controller.ai}
             analysisLevel={controller.analysisLevel}
@@ -48,11 +42,7 @@ export function App() {
             templates={controller.templates}
             templateId={controller.templateId}
             setTemplateId={controller.setTemplateId}
-            drag={controller.drag}
-            setDrag={controller.setDrag}
-            uploadRef={controller.uploadRef}
             openDemo={controller.openDemo}
-            addFiles={controller.addFiles}
             start={controller.start}
           />
         ) : (

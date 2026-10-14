@@ -8,7 +8,7 @@ export function issue(c: CaseRecord, ru: string, kk: string) {
 }
 
 export async function saveText(
-  store: CollectionStorage,
+  store: Pick<CollectionStorage, 'addEvidence'>,
   c: CaseRecord,
   e: Evidence,
   text: string,

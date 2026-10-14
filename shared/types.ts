@@ -1,3 +1,4 @@
+import type { CollectionReport } from './collection.ts';
 import type { OsintReport } from './osint.ts';
 export interface AiAttempt {
   profile: string;
@@ -57,6 +58,12 @@ export type Localized = { ru: string; kk: string };
 export type Status = 'queued' | 'collecting' | 'analyzing' | 'review' | 'verified' | 'failed';
 export type Decision = 'pending' | 'accepted' | 'rejected';
 export interface Evidence {
+  capture?: {
+    textEvidenceId: string;
+    visibleText: string;
+    quality: 'adequate' | 'limited';
+    scrollY: number;
+  };
   id: string;
   name: string;
   storedName: string;
@@ -71,6 +78,14 @@ export interface Evidence {
   sourceUrl?: string;
 }
 export interface Finding {
+  visualEvidence?:
+    | {
+        status: 'verified';
+        screenshotId: string;
+        verifiedAt: string;
+        method: 'exact-visible-text-before-and-after-capture';
+      }
+    | { status: 'unavailable'; reason: string };
   scope?: 'target' | 'related';
   region?: {
     evidenceId: string;
@@ -122,6 +137,7 @@ export interface FollowUp {
   evidenceIds: string[];
 }
 export interface CaseRevision {
+  collection?: CollectionReport;
   sha256?: string;
   legalReview?: CaseRecord['legalReview'];
   number: number;
@@ -142,6 +158,8 @@ export interface CaseRevision {
   reviewedAt?: string;
 }
 export interface CaseRecord {
+  collection?: CollectionReport;
+  refreshSources?: boolean;
   legalReview?: {
     eventDate: string;
     jurisdictionConfirmed: boolean;

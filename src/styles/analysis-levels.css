@@ -113,3 +113,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+.analysis-metrics {
+  margin: 16px 0;
+  padding: 20px 24px;
+}
+.analysis-metrics h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.analysis-metrics dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 36px;
+  margin: 0 0 16px;
+}
+.analysis-metrics dt {
+  color: #64726b;
+  font-size: 12px;
+}
+.analysis-metrics dd {
+  margin: 6px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.analysis-metrics > p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+.token-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 6px;
+}
+.token-usage > span {
+  overflow-wrap: anywhere;
+}

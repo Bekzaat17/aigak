@@ -3,7 +3,7 @@ import type { ProcessingStage } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 
 export class CollectionStage implements ProcessingStage {
-  readonly id = 'collection-v1';
+  readonly id = 'collection-v2';
   constructor(
     private readonly store: Pick<CaseStore, 'event'>,
     private readonly collectUrl: (c: CaseRecord) => Promise<void>,
@@ -13,7 +13,7 @@ export class CollectionStage implements ProcessingStage {
     c.status = 'collecting';
     c.step = { ru: 'Фиксация и извлечение текста', kk: 'Тіркеу және мәтінді алу' };
     await this.store.event(c, 'collection.started');
-    if (c.sourceType === 'url' && !c.reanalysis) await this.collectUrl(c);
+    if (c.sourceType === 'url' && (!c.reanalysis || c.refreshSources)) await this.collectUrl(c);
     for (const e of [...c.evidence])
       if (e.kind === 'original' && !c.evidence.some((child) => child.parentId === e.id))
         await this.extractFile(c, e);

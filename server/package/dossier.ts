@@ -23,7 +23,9 @@ export function dossierText(c: PackageDocument, lang: Lang) {
     ...d.legal.map((h) => {
       const norm = c.osint?.legalNorms?.find((n) => n.id === h.normId);
       return [
-        norm?.title?.[lang] || t('Об игорном бизнесе', 'Ойын бизнесі туралы'),
+        norm?.title?.[lang] ||
+          norm?.documentId ||
+          t('Источник не установлен', 'Дереккөз анықталмаған'),
         t('Статья', 'Бап') + ' ' + norm?.article,
         h.normQuote,
         h.reason[lang],

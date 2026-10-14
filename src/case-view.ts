@@ -1,3 +1,6 @@
+import { verifiedFindingScreenshot } from '../shared/finding-screenshot';
+import { currentEvidence } from '../shared/current-evidence';
+import { reliableContentAssessment } from '../shared/content-assessment';
 import type { CaseRecord, Evidence, Finding } from '../shared/types';
 /** Match preserved ancestry, not filenames or arbitrary image order. */
 export function evidenceFamily(c: CaseRecord, id: string): Evidence[] {
@@ -12,17 +15,22 @@ export function evidenceFamily(c: CaseRecord, id: string): Evidence[] {
   return c.evidence.filter((e) => ids.has(e.id));
 }
 export function findingImage(c: CaseRecord, f: Finding) {
+  if (f.visualEvidence?.status === 'verified') return verifiedFindingScreenshot(f, c.evidence);
+  if (f.visualEvidence?.status === 'unavailable') return undefined;
   const family = evidenceFamily(c, f.evidenceId);
+  const normalize = (text: string) => text.replace(/\s+/gu, ' ').trim();
+  const matched = c.evidence.find(
+    (e) =>
+      e.mime.startsWith('image/') &&
+      e.capture?.quality === 'adequate' &&
+      e.capture.textEvidenceId === f.evidenceId &&
+      normalize(e.capture.visibleText).includes(normalize(f.quote)),
+  );
+  if (matched) return matched;
   const direct = family.find((e) => e.mime.startsWith('image/'));
   if (direct) return direct;
-  // A screenshot of a rendered page is contextual, not a crop proving the quotation.
-  return c.evidence.find((e) => {
-    if (e.method !== 'playwright-screenshot') return false;
-    const dom = c.evidence.find((a) => a.id === e.parentId);
-    return family.some(
-      (a) => a.id === e.parentId || (a.method === 'http-get' && a.id === dom?.parentId),
-    );
-  });
+  // Legacy page screenshots have no verified quote mapping and must not be shown as proof.
+  return undefined;
 }
 export function linkedHypotheses(c: CaseRecord, f: Finding) {
   const stages = c.inspection?.stages || [];
@@ -50,12 +58,18 @@ export function contentVerdict(
   if (final?.review && ['insufficient', 'ambiguous'].includes(final.review.status))
     return 'insufficient';
   if (c.findings.length) return 'indicators';
+  if (
+    final?.review?.status === 'not_found' &&
+    reliableContentAssessment(c.inspection?.stages || [], c.collection)
+  )
+    return 'not_found';
+  if (c.collection && c.collection.status !== 'adequate') return 'insufficient';
   if (c.inspection?.status === 'partial') return 'insufficient';
   return 'not_found';
 }
 
 export function primaryMaterials(c: CaseRecord) {
-  return c.evidence.filter(
+  return currentEvidence(c).filter(
     (e) =>
       e.kind === 'original' || e.mime.startsWith('image/') || (e.kind === 'text' && !e.parentId),
   );
