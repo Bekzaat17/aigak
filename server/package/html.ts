@@ -22,28 +22,168 @@ export function reportHtml(c: PackageDocument, lang: Lang) {
     c.previewImages?.[id]
       ? `<div style="position:relative;max-width:650px"><img alt="${escape(t('Сохранённый снимок', 'Сақталған сурет'))}" style="display:block;width:100%" src="${c.previewImages[id]}">${region ? `<div style="position:absolute;border:3px solid #b35d24;box-sizing:border-box;left:${region.x * 100}%;top:${region.y * 100}%;width:${region.width * 100}%;height:${region.height * 100}%"></div>` : ''}</div>`
       : '';
-  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${escape(c.number)} — aigak</title><style>@page{size:A4;margin:18mm}p,li{white-space:pre-line;overflow-wrap:anywhere}body{font:12px/1.6 Arial,sans-serif;color:#183632;max-width:850px;margin:30px auto;padding:0 20px;box-sizing:border-box}h1{font-size:28px}h2{break-after:avoid;font-size:18px;margin-top:28px;border-bottom:1px solid #bbc9c2;padding-bottom:8px}h3{break-after:avoid;font-size:14px}tr{break-inside:avoid}.tag{display:inline-block;padding:4px 10px;background:#ecf3e9}.muted{color:#64726b}blockquote{border-left:3px solid #4b7968;padding:10px 16px;background:#f6f8f4;margin:12px 0;white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;table-layout:fixed}td,th{border:1px solid #d4ddd5;padding:8px;text-align:left;overflow-wrap:anywhere}code{font-size:10px;overflow-wrap:anywhere}.finding{break-inside:avoid}p{overflow-wrap:anywhere;white-space:pre-line}footer{border-top:1px solid #ccc;margin-top:30px;padding-top:12px}.draft{color:#96651c}</style></head><body>
-  <p><strong>aigak</strong> / ${escape(c.number)}</p><span class="tag draft">${t('ПРОЕКТ • НЕ ЯВЛЯЕТСЯ РЕШЕНИЕМ О БЛОКИРОВКЕ', 'ЖОБА • БҰҒАТТАУ ТУРАЛЫ ШЕШІМ ЕМЕС')}</span>
-  ${c.demo ? `<p class="draft">${t('СИНТЕТИЧЕСКИЙ ПРИМЕР — не использовать для реального обращения', 'СИНТЕТИКАЛЫҚ МЫСАЛ — нақты өтініш үшін пайдаланбаңыз')}</p>` : ''}
-  <h1>${t('Материалы проверки', 'Тексеру материалдары')}</h1><h3>${escape(c.title)}</h3>
-  <p>${t('Источник', 'Дереккөз')}: ${escape(c.sourceUrl || t('Загруженный материал; URL не установлен', 'Жүктелген материал; URL анықталмаған'))}<br>${t('Получено', 'Алынған уақыты')}: ${escape(c.createdAt)} (UTC)<br>${t('Метод анализа', 'Талдау әдісі')}: ${c.engine === 'ai' ? 'AI' : 'Rules / ' + (c.inspection?.stages.find((s) => s.id === 'rules')?.version || 'legacy')}<br>${t('Внутренняя проверка', 'Ішкі тексеру')}: ${c.status === 'verified' ? t('выполнена', 'орындалды') : t('не завершена', 'аяқталмады')}<br>${t('Офицер', 'Қызметкер')}: ${escape(c.officer || '________________')}</p>
-  <p>${escape(c.assessment[lang])}</p><p>${t('Предварительная оценка AI', 'AI алдын ала бағасы')}: ${c.likelihood === null ? t('не рассчитана', 'есептелмеген') : c.likelihood + '% · ' + t('не откалибрована', 'калибрленбеген')}</p>
-  ${c.analysisLevel === 'pro' ? '<h2>Pro</h2><p>' + escape(dossierText(c, lang)) + '</p>' : ''}
-  ${c.inspection ? `<h2>${t('Ход анализа', 'Талдау барысы')} · ${escape(levelName(c.analysisLevel)[lang])}</h2><p>${c.inspection.status === 'partial' ? t('Частичная проверка', 'Ішінара тексеру') : t('Проверки завершены', 'Тексерулер аяқталды')}</p>${c.inspection.stages.map((s) => `<h3>${escape(s.name[lang])}</h3><p>${escape(s.status)} · v${escape(s.version)} · ${s.durationMs} ms</p><p>${escape(s.summary[lang])}</p><p>${escape(aiStageDetails(s, lang))}</p>`).join('')}` : ''}
-  ${c.osint ? '<h2>OSINT</h2><p>' + escape(osintSummary(c.osint, lang)) + '</p>' : ''}
-  <h2>${t('1. Наблюдения и проверка', '1. Бақылаулар және тексеру')}</h2>
-  ${c.findings.length ? c.findings.map((f, i) => `<div class="finding"><h3>${i + 1}. ${escape(f.title[lang])}</h3>${f.scope === 'related' ? `<p>${t('Находка на другом ресурсе; не доказательство содержимого исходного сайта.', 'Басқа ресурстағы белгі; бастапқы сайт мазмұнының дәлелі емес.')}</p>` : ''}<p>${escape(decision(f.decision))} · ${escape(f.engine)}</p><blockquote>${escape(f.quote)}</blockquote><p>${escape(f.explanation[lang])}</p><p>${t('Комментарий инспектора', 'Инспектор түсініктемесі')}: ${escape(f.note || '—')}</p><p class="muted">${t('Материал', 'Материал')}: <a href="#appendix-${appendixNumber(c, f.evidenceId)}">${t('Приложение', 'Қосымша')} ${appendixNumber(c, f.evidenceId)}</a> · ${t('Символы', 'Таңбалар')} [${f.start}, ${f.end})</p>${f.region ? `<p>${t('Ручная отметка инспектора · приложение', 'Инспектордың қол белгісі · қосымша')} ${appendixNumber(c, f.region.evidenceId)}</p>${image(f.region.evidenceId, f.region)}` : ''}</div>`).join('') : `<p>${t('Подтверждённых признаков нет. Это не подтверждение законности ресурса.', 'Расталған белгілер жоқ. Бұл ресурстың заңдылығын растамайды.')}</p>`}
-  <h2>${t('2. Опись материалов', '2. Материалдар тізімдемесі')}</h2><table><thead><tr><th>${t('Материал / метод', 'Материал / әдіс')}</th><th>SHA-256 / ${t('размер', 'көлем')}</th></tr></thead><tbody>${c.evidence.map((e, i) => `<tr id="appendix-${i + 1}"><td>${t('Приложение', 'Қосымша')} ${i + 1}<br><a href="evidence/${escape(e.storedName)}">${t('Оригинал', 'Түпнұсқа')}</a><br>${escape(e.name)}<br><code>${escape(e.id)}</code><br>${escape(e.method)}<br>${escape(e.createdAt)}</td><td><code>${e.sha256}</code><br>${e.size} bytes</td></tr>`).join('')}</tbody></table>
-  ${c.evidence
-    .filter((e) => e.mime.startsWith('image/'))
-    .map(
-      (e) =>
-        `<h3>${t('Приложение', 'Қосымша')} ${appendixNumber(c, e.id)} · ${escape(e.name)}</h3>${image(e.id) || `<p>${t('Изображение доступно в оригинале в архиве.', 'Кескін мұрағаттағы түпнұсқада қолжетімді.')}</p>`}`,
-    )
-    .join('')}
-  <h2>${t('3. Ограничения и недостающие сведения', '3. Шектеулер және жетіспейтін мәліметтер')}</h2><ul>${c.issues.map((i) => `<li>${escape(i[lang])}</li>`).join('')}<li>${t('Юридическое основание, адресат и утверждённая форма должны быть определены ответственным специалистом.', 'Құқықтық негізді, адресатты және бекітілген нысанды жауапты маман анықтауы тиіс.')}</li></ul>
-  <h2>${t('4. Замечания офицера', '4. Қызметкердің ескертулері')}</h2><p>${escape(c.notes || t('Не заполнены', 'Толтырылмаған'))}</p>${c.clarifications.map((q) => `<p><strong>${escape(q.question[lang])}</strong><br>${escape({ yes: t('Да', 'Иә'), no: t('Нет', 'Жоқ'), unknown: t('Не уверен', 'Сенімді емеспін'), '': t('Без ответа', 'Жауапсыз') }[q.answer])} · ${escape(q.note)}</p>`).join('')}
-  ${(c.followUps || []).map((q) => `<p><strong>${escape(q.question[lang])}</strong><br>${escape(q.answer || t('Без ответа', 'Жауапсыз'))}<br>${t('Приложения', 'Қосымшалар')}: ${q.evidenceIds.map((id) => appendixNumber(c, id)).join(', ')}</p>`).join('')}
-  <h2>${t('5. Проект обращения', '5. Өтініш жобасы')}</h2><p>${t('Адресат', 'Адресат')}: ____________________<br>${t('Правовое основание (заполняет специалист)', 'Құқықтық негіз (маман толтырады)')}: ____________________</p><p>${t('Прошу рассмотреть приложенные материалы проверки интернет-ресурса и оценить наличие оснований для предусмотренных законом мер. Подтверждённые офицером наблюдения приведены в разделе 1. Оригиналы и контрольные суммы включены в пакет.', 'Интернет-ресурсты тексерудің қоса берілген материалдарын қарастырып, заңда көзделген шараларға негіздердің бар-жоғын бағалауды сұраймын. Қызметкер растаған бақылаулар 1-бөлімде келтірілген. Түпнұсқалар мен бақылау сомалары пакетке енгізілген.')}</p><p>${t('Подпись / дата', 'Қолы / күні')}: ____________________</p>
-  <footer class="muted">${t('Время — часы сервера. SHA-256 позволяет сверить целостность относительно манифеста; не удостоверяет автора, время публикации или юридическую допустимость. Журнал локальный, без внешнего заверения.', 'Уақыт — сервер сағаты. SHA-256 манифестке қатысты тұтастықты тексереді; авторды, жариялау уақытын немесе құқықтық жарамдылықты куәландырмайды. Журнал жергілікті, сыртқы куәландырусыз.')}<br>aigak v0.1 · ${escape(c.id)}</footer></body></html>`;
+  return /* HTML */ `<!doctype html>
+    <html lang="${lang}">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escape(c.number)} — aigak</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 18mm;
+          }
+          p,
+          li {
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+          }
+          body {
+            font:
+              12px/1.6 Arial,
+              sans-serif;
+            color: #183632;
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+          }
+          h1 {
+            font-size: 28px;
+          }
+          h2 {
+            break-after: avoid;
+            font-size: 18px;
+            margin-top: 28px;
+            border-bottom: 1px solid #bbc9c2;
+            padding-bottom: 8px;
+          }
+          h3 {
+            break-after: avoid;
+            font-size: 14px;
+          }
+          tr {
+            break-inside: avoid;
+          }
+          .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #ecf3e9;
+          }
+          .muted {
+            color: #64726b;
+          }
+          blockquote {
+            border-left: 3px solid #4b7968;
+            padding: 10px 16px;
+            background: #f6f8f4;
+            margin: 12px 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+          }
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+          }
+          td,
+          th {
+            border: 1px solid #d4ddd5;
+            padding: 8px;
+            text-align: left;
+            overflow-wrap: anywhere;
+          }
+          code {
+            font-size: 10px;
+            overflow-wrap: anywhere;
+          }
+          .finding {
+            break-inside: avoid;
+          }
+          p {
+            overflow-wrap: anywhere;
+            white-space: pre-line;
+          }
+          footer {
+            border-top: 1px solid #ccc;
+            margin-top: 30px;
+            padding-top: 12px;
+          }
+          .draft {
+            color: #96651c;
+          }
+        </style>
+      </head>
+      <body>
+        <p><strong>aigak</strong> / ${escape(c.number)}</p>
+        <span class="tag draft"
+          >${t('ПРОЕКТ • НЕ ЯВЛЯЕТСЯ РЕШЕНИЕМ О БЛОКИРОВКЕ', 'ЖОБА • БҰҒАТТАУ ТУРАЛЫ ШЕШІМ ЕМЕС')}</span
+        >
+        ${c.demo ? `<p class="draft">${t('СИНТЕТИЧЕСКИЙ ПРИМЕР — не использовать для реального обращения', 'СИНТЕТИКАЛЫҚ МЫСАЛ — нақты өтініш үшін пайдаланбаңыз')}</p>` : ''}
+        <h1>${t('Материалы проверки', 'Тексеру материалдары')}</h1>
+        <h3>${escape(c.title)}</h3>
+        <p>
+          ${t('Источник', 'Дереккөз')}:
+          ${escape(c.sourceUrl || t('Загруженный материал; URL не установлен', 'Жүктелген материал; URL анықталмаған'))}<br />${t('Получено', 'Алынған уақыты')}:
+          ${escape(c.createdAt)} (UTC)<br />${t('Метод анализа', 'Талдау әдісі')}:
+          ${c.engine === 'ai' ? 'AI' : 'Rules / ' + (c.inspection?.stages.find((s) => s.id === 'rules')?.version || 'legacy')}<br />${t('Внутренняя проверка', 'Ішкі тексеру')}:
+          ${c.status === 'verified' ? t('выполнена', 'орындалды') : t('не завершена', 'аяқталмады')}<br />${t('Офицер', 'Қызметкер')}:
+          ${escape(c.officer || '________________')}
+        </p>
+        <p>${escape(c.assessment[lang])}</p>
+        <p>
+          ${t('Предварительная оценка AI', 'AI алдын ала бағасы')}:
+          ${c.likelihood === null ? t('не рассчитана', 'есептелмеген') : c.likelihood + '% · ' + t('не откалибрована', 'калибрленбеген')}
+        </p>
+        ${c.analysisLevel === 'pro' ? '<h2>Pro</h2><p>' + escape(dossierText(c, lang)) + '</p>' : ''}
+        ${c.inspection ? `<h2>${t('Ход анализа', 'Талдау барысы')} · ${escape(levelName(c.analysisLevel)[lang])}</h2><p>${c.inspection.status === 'partial' ? t('Частичная проверка', 'Ішінара тексеру') : t('Проверки завершены', 'Тексерулер аяқталды')}</p>${c.inspection.stages.map((s) => `<h3>${escape(s.name[lang])}</h3><p>${escape(s.status)} · v${escape(s.version)} · ${s.durationMs} ms</p><p>${escape(s.summary[lang])}</p><p>${escape(aiStageDetails(s, lang))}</p>`).join('')}` : ''}
+        ${c.osint ? '<h2>OSINT</h2><p>' + escape(osintSummary(c.osint, lang)) + '</p>' : ''}
+        <h2>${t('1. Наблюдения и проверка', '1. Бақылаулар және тексеру')}</h2>
+        ${c.findings.length ? c.findings.map((f, i) => `<div class="finding"><h3>${i + 1}. ${escape(f.title[lang])}</h3>${f.scope === 'related' ? `<p>${t('Находка на другом ресурсе; не доказательство содержимого исходного сайта.', 'Басқа ресурстағы белгі; бастапқы сайт мазмұнының дәлелі емес.')}</p>` : ''}<p>${escape(decision(f.decision))} · ${escape(f.engine)}</p><blockquote>${escape(f.quote)}</blockquote><p>${escape(f.explanation[lang])}</p><p>${t('Комментарий инспектора', 'Инспектор түсініктемесі')}: ${escape(f.note || '—')}</p><p class="muted">${t('Материал', 'Материал')}: <a href="#appendix-${appendixNumber(c, f.evidenceId)}">${t('Приложение', 'Қосымша')} ${appendixNumber(c, f.evidenceId)}</a> · ${t('Символы', 'Таңбалар')} [${f.start}, ${f.end})</p>${f.region ? `<p>${t('Ручная отметка инспектора · приложение', 'Инспектордың қол белгісі · қосымша')} ${appendixNumber(c, f.region.evidenceId)}</p>${image(f.region.evidenceId, f.region)}` : ''}</div>`).join('') : `<p>${t('Подтверждённых признаков нет. Это не подтверждение законности ресурса.', 'Расталған белгілер жоқ. Бұл ресурстың заңдылығын растамайды.')}</p>`}
+        <h2>${t('2. Опись материалов', '2. Материалдар тізімдемесі')}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>${t('Материал / метод', 'Материал / әдіс')}</th>
+              <th>SHA-256 / ${t('размер', 'көлем')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${c.evidence.map((e, i) => `<tr id="appendix-${i + 1}"><td>${t('Приложение', 'Қосымша')} ${i + 1}<br><a href="evidence/${escape(e.storedName)}">${t('Оригинал', 'Түпнұсқа')}</a><br>${escape(e.name)}<br><code>${escape(e.id)}</code><br>${escape(e.method)}<br>${escape(e.createdAt)}</td><td><code>${e.sha256}</code><br>${e.size} bytes</td></tr>`).join('')}
+          </tbody>
+        </table>
+        ${c.evidence
+          .filter((e) => e.mime.startsWith('image/'))
+          .map(
+            (e) =>
+              `<h3>${t('Приложение', 'Қосымша')} ${appendixNumber(c, e.id)} · ${escape(e.name)}</h3>${image(e.id) || `<p>${t('Изображение доступно в оригинале в архиве.', 'Кескін мұрағаттағы түпнұсқада қолжетімді.')}</p>`}`,
+          )
+          .join('')}
+        <h2>
+          ${t('3. Ограничения и недостающие сведения', '3. Шектеулер және жетіспейтін мәліметтер')}
+        </h2>
+        <ul>
+          ${c.issues.map((i) => `<li>${escape(i[lang])}</li>`).join('')}
+          <li>
+            ${t('Юридическое основание, адресат и утверждённая форма должны быть определены ответственным специалистом.', 'Құқықтық негізді, адресатты және бекітілген нысанды жауапты маман анықтауы тиіс.')}
+          </li>
+        </ul>
+        <h2>${t('4. Замечания офицера', '4. Қызметкердің ескертулері')}</h2>
+        <p>${escape(c.notes || t('Не заполнены', 'Толтырылмаған'))}</p>
+        ${c.clarifications.map((q) => `<p><strong>${escape(q.question[lang])}</strong><br>${escape({ yes: t('Да', 'Иә'), no: t('Нет', 'Жоқ'), unknown: t('Не уверен', 'Сенімді емеспін'), '': t('Без ответа', 'Жауапсыз') }[q.answer])} · ${escape(q.note)}</p>`).join('')}
+        ${(c.followUps || []).map((q) => `<p><strong>${escape(q.question[lang])}</strong><br>${escape(q.answer || t('Без ответа', 'Жауапсыз'))}<br>${t('Приложения', 'Қосымшалар')}: ${q.evidenceIds.map((id) => appendixNumber(c, id)).join(', ')}</p>`).join('')}
+        <h2>${t('5. Проект обращения', '5. Өтініш жобасы')}</h2>
+        <p>
+          ${t('Адресат', 'Адресат')}: ____________________<br />${t('Правовое основание (заполняет специалист)', 'Құқықтық негіз (маман толтырады)')}:
+          ____________________
+        </p>
+        <p>
+          ${t('Прошу рассмотреть приложенные материалы проверки интернет-ресурса и оценить наличие оснований для предусмотренных законом мер. Подтверждённые офицером наблюдения приведены в разделе 1. Оригиналы и контрольные суммы включены в пакет.', 'Интернет-ресурсты тексерудің қоса берілген материалдарын қарастырып, заңда көзделген шараларға негіздердің бар-жоғын бағалауды сұраймын. Қызметкер растаған бақылаулар 1-бөлімде келтірілген. Түпнұсқалар мен бақылау сомалары пакетке енгізілген.')}
+        </p>
+        <p>${t('Подпись / дата', 'Қолы / күні')}: ____________________</p>
+        <footer class="muted">
+          ${t('Время — часы сервера. SHA-256 позволяет сверить целостность относительно манифеста; не удостоверяет автора, время публикации или юридическую допустимость. Журнал локальный, без внешнего заверения.', 'Уақыт — сервер сағаты. SHA-256 манифестке қатысты тұтастықты тексереді; авторды, жариялау уақытын немесе құқықтық жарамдылықты куәландырмайды. Журнал жергілікті, сыртқы куәландырусыз.')}<br />aigak
+          v0.1 · ${escape(c.id)}
+        </footer>
+      </body>
+    </html>`;
 }

@@ -12,12 +12,14 @@ export const errorHandler: express.ErrorRequestHandler = (
   if (error instanceof multer.MulterError) code = error.code;
   if (!/^[A-Z_]+$/.test(code)) code = 'REQUEST_FAILED';
   const status =
-    code === 'QUEUE_FULL'
-      ? 429
-      : code === 'NOT_FOUND'
-        ? 404
-        : code === 'INTEGRITY_FAILED' || code === 'CASE_BUSY' || code === 'CASE_CONFLICT'
-          ? 409
-          : 400;
+    code === 'STORAGE_UNAVAILABLE'
+      ? 503
+      : code === 'QUEUE_FULL'
+        ? 429
+        : code === 'NOT_FOUND'
+          ? 404
+          : code === 'INTEGRITY_FAILED' || code === 'CASE_BUSY' || code === 'CASE_CONFLICT'
+            ? 409
+            : 400;
   res.status(status).json({ error: code });
 };

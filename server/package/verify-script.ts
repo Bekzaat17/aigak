@@ -1,1 +1,19 @@
-export const verifyScript = `import {readFileSync} from 'node:fs';\nimport {createHash} from 'node:crypto';\nimport path from 'node:path';\nimport {fileURLToPath} from 'node:url';\nconst root=path.dirname(fileURLToPath(import.meta.url));\nconst manifest=JSON.parse(readFileSync(path.join(root,'manifest.json'),'utf8'));\nfor(const f of manifest.files){ const p=path.resolve(root,f.path); if(!p.startsWith(root+path.sep))throw new Error('Unsafe path'); const b=readFileSync(p); if(b.length!==f.size||createHash('sha256').update(b).digest('hex')!==f.sha256)throw new Error('Mismatch: '+f.path); }\nconsole.log('Verified '+manifest.files.length+' files. The manifest itself is not externally signed.');\n`;
+/** Standalone verifier included in exported archives; it has no application dependencies. */
+export const verifyScript = `import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+for (const file of manifest.files) {
+  const location = path.resolve(root, file.path);
+  if (!location.startsWith(root + path.sep)) throw new Error('Unsafe path');
+  const bytes = readFileSync(location);
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  if (bytes.length !== file.size || hash !== file.sha256) {
+    throw new Error('Mismatch: ' + file.path);
+  }
+}
+console.log('Verified ' + manifest.files.length + ' files. The manifest itself is not externally signed.');
+`;

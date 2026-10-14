@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { busyStatuses } from '../../../shared/types.ts';
+import { getEditableCase } from './get-editable-case.ts';
 import type { CaseStore } from '../ports/storage.ts';
 export async function setFindingRegionCommand(
-  store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
+  store: Pick<CaseStore, 'get' | 'event'>,
   params: { id: string; findingId: string },
   body: unknown,
 ) {
@@ -15,9 +15,7 @@ export async function setFindingRegionCommand(
       height: z.number().positive().max(1),
     })
     .parse(body);
-  const c = await store.get(params.id);
-  if (!c) throw Error('NOT_FOUND');
-  if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
+  const c = await getEditableCase(store, params.id);
   if (
     input.x + input.width > 1.001 ||
     input.y + input.height > 1.001 ||

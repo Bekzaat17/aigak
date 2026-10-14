@@ -1,7 +1,7 @@
-import type { Pool } from 'pg';
+import type { SqlExecutor } from './SqlExecutor.ts';
 import type { TemplateEntry, TemplateRepository } from '../../application/ports/templates.ts';
 export class PostgresTemplateRepository implements TemplateRepository {
-  constructor(private readonly db: Pick<Pool, 'query'>) {}
+  constructor(private readonly db: SqlExecutor) {}
   async list(): Promise<TemplateEntry[]> {
     return (
       await this.db.query<TemplateEntry>('SELECT id,name,sha256 FROM templates ORDER BY ordinal')

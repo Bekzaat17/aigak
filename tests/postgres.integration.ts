@@ -1,4 +1,8 @@
+import { startRevision } from '../server/revisions.ts';
+import { InterruptedIntakeRecovery } from '../server/application/processing/InterruptedIntakeRecovery.ts';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtempSync, rmSync, readFileSync, chmodSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,6 +15,8 @@ import { defaultTemplate } from '../server/templates/default-template.ts';
 import { importSqlite } from '../server/storage/postgres/import-sqlite.ts';
 import { migratePostgresSchema } from '../server/storage/postgres/schema.ts';
 import { PostgresCaseRepository } from '../server/storage/postgres/PostgresCaseRepository.ts';
+import { ProcessingWorker } from '../server/application/processing/ProcessingWorker.ts';
+import { CaseProcessingService } from '../server/application/processing/CaseProcessingService.ts';
 import { sha256 } from '../server/domain/sha256.ts';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -95,9 +101,119 @@ test('PostgreSQL: migration, unchanged hashes, restart, sequence, conflicts and 
     closeRuntime = storage.close;
     assert.equal((await storage.store.get(record.id))!.title, 'First writer');
     storage.store.verify((await storage.store.get(record.id))!);
+    // API and worker coexist, but a second worker cannot execute the same queue.
+    const workerStorage = await createPostgresStorage(directory, schemaUrl.href, 'worker');
+    try {
+      await assert.rejects(
+        createPostgresStorage(directory, schemaUrl.href, 'worker'),
+        /DATABASE_IN_USE/,
+      );
+      const queued = await newCase(storage.store, {
+        title: 'Durable task',
+        sourceType: 'text',
+        useAi: false,
+      });
+      await storage.jobs.add(queued.id);
+      await storage.jobs.add(queued.id);
+      assert.equal(await storage.jobs.countPending(), 1);
+      assert.equal((await workerStorage.jobs.claim())?.attempt, 1);
+      assert.equal(await storage.jobs.countPending(), 0);
+      await workerStorage.jobs.checkpoint(queued.id, 'first');
+      // The next runtime recovers a running task and skips persisted completed stages.
+      let executed = 0;
+      const processor = new CaseProcessingService(
+        workerStorage.store,
+        [
+          {
+            id: 'first',
+            execute: async () => {
+              throw new Error('completed stage must not repeat');
+            },
+          },
+          {
+            id: 'second',
+            execute: async () => {
+              executed++;
+            },
+          },
+        ],
+        workerStorage.jobs,
+      );
+      const worker = new ProcessingWorker(workerStorage.jobs, processor, processor);
+      await worker.tick();
+      assert.equal(executed, 1);
+      assert.equal((await storage.store.get(queued.id))?.status, 'review');
+      assert.equal(await storage.jobs.countPending(), 0);
+      assert.equal(await worker.tick(), false);
+      workerStorage.store.verify((await workerStorage.store.get(queued.id))!);
+      // A new revision submitted before old acknowledgement must remain pending.
+      const revision = (await storage.store.get(queued.id))!;
+      revision.status = 'queued';
+      await storage.store.save(revision);
+      await storage.jobs.add(queued.id);
+      await workerStorage.jobs.complete(queued.id);
+      assert.equal(await storage.jobs.countPending(), 1);
+      assert.deepEqual(await workerStorage.jobs.completedStages(queued.id), []);
+    } finally {
+      await workerStorage.close();
+    }
+    // Kill a real worker process after its first persisted stage, then resume it.
+    const crashCase = await newCase(storage.store, {
+      title: 'Crash recovery',
+      sourceType: 'text',
+      useAi: false,
+    });
+    // Finish the earlier synthetic pending revision before exercising the child worker.
+    await pool.query("UPDATE processing_jobs SET status='completed'");
+    await storage.jobs.add(crashCase.id);
+    const childEnvironment = { ...process.env, DATABASE_URL: schemaUrl.href, DATA_DIR: directory };
+    const child = spawn(process.execPath, ['--import', 'tsx', 'tests/fixtures/crash-worker.ts'], {
+      env: childEnvironment,
+    });
+    const childExited = once(child, 'exit');
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('worker readiness timeout')), 10000);
+        child.stdout.on('data', (chunk: Buffer) => {
+          if (chunk.toString().includes('READY_TO_KILL')) {
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        child.once('exit', () => {
+          clearTimeout(timeout);
+          reject(new Error('worker exited before checkpoint'));
+        });
+        child.once('error', reject);
+      });
+    } finally {
+      child.kill('SIGKILL');
+      await childExited;
+    }
+    const resumed = spawn(process.execPath, ['--import', 'tsx', 'tests/fixtures/crash-worker.ts'], {
+      env: { ...childEnvironment, RESUMED: '1' },
+    });
+    const [exitCode] = await once(resumed, 'exit');
+    assert.equal(exitCode, 0);
+    const recovered = (await storage.store.get(crashCase.id))!;
+    assert.equal(recovered.status, 'review');
+    assert.equal(recovered.evidence.length, 1);
+    storage.store.verify(recovered);
+    assert.equal(await storage.jobs.countPending(), 0);
+    // An API crash during revision intake must not reuse the previous revision's checkpoint.
+    await pool.query("UPDATE processing_jobs SET status='running' WHERE case_id=$1", [
+      crashCase.id,
+    ]);
+    await startRevision(storage.store, recovered, 'basic');
+    assert.ok((await storage.jobs.interruptedIntakes()).includes(crashCase.id));
+    assert.equal(await storage.jobs.claim(), undefined);
+    await new InterruptedIntakeRecovery(storage.store).recover(
+      await storage.jobs.interruptedIntakes(),
+    );
+    assert.equal((await storage.store.get(crashCase.id))?.status, 'failed');
     const repository = new PostgresCaseRepository(pool);
     assert.equal(await repository.get('missing'), undefined);
-    assert.equal((await repository.list())[0].evidenceCount, 1);
+    assert.equal((await repository.list()).find((item) => item.id === record.id)?.evidenceCount, 1);
   } finally {
     await closeRuntime?.();
     await pool.end();

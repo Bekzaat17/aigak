@@ -5,6 +5,7 @@ import type { ProcessingStage } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 
 export class ProEnrichmentStage implements ProcessingStage {
+  readonly id = 'pro-enrichment-v1';
   constructor(
     private readonly store: Pick<CaseStore, 'addEvidence' | 'event' | 'read'>,
     private readonly official: { enrich(report: OsintReport, save: SaveArtifact): Promise<void> },

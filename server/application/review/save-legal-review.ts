@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { busyStatuses } from '../../../shared/types.ts';
+import { getEditableCase } from './get-editable-case.ts';
 import type { CaseStore } from '../ports/storage.ts';
 export async function saveLegalReviewCommand(
-  store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
+  store: Pick<CaseStore, 'get' | 'event'>,
   params: { id: string },
   body: unknown,
 ) {
@@ -20,9 +20,7 @@ export async function saveLegalReviewCommand(
     new Date(input.eventDate).toISOString().slice(0, 10) !== input.eventDate
   )
     throw Error('VALIDATION_ERROR');
-  const c = await store.get(params.id);
-  if (!c) throw Error('NOT_FOUND');
-  if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
+  const c = await getEditableCase(store, params.id);
   c.legalReview = input;
   c.status = 'review';
   delete c.reviewedAt;

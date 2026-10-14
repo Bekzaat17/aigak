@@ -1,10 +1,27 @@
+x-app: &app
+  image: aigak-local
+  pull_policy: never
+  env_file: ${AIGAK_ENV_FILE:-.env}
+  environment: &environment
+    NODE_ENV: production
+    STORAGE_DRIVER: postgres
+    HOST: 0.0.0.0
+    PORT: ${PORT:-4317}
+    DATA_DIR: /app/data
+    BROWSER_CHANNEL: ''
+    DATABASE_URL: postgres://aigak@postgres:5432/aigak
+    PGPASSWORD: ${POSTGRES_PASSWORD:?Run ./scripts/up.sh}
+  volumes:
+    - ${DATA_DIR:-./data}:/app/data
+  init: true
+
 services:
   postgres:
     image: postgres:18
     environment:
       POSTGRES_USER: aigak
       POSTGRES_DB: aigak
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run ./scripts/up.sh}
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -14,6 +31,58 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+  migrate:
+    <<: *app
+    command: ['node', '--import', 'tsx', 'scripts/migrate-postgres.ts']
+    depends_on:
+      postgres:
+        condition: service_healthy
+  assets:
+    <<: *app
+    command: ['sh', '-c', 'mkdir -p /app/data/ocr && cp -n /opt/aigak-assets/ocr/* /app/data/ocr/']
+  api:
+    <<: *app
+    build: .
+    ports:
+      - '127.0.0.1:${PORT:-4317}:${PORT:-4317}'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      assets:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://localhost:"+process.env.PORT+"/api/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  worker:
+    <<: *app
+    command: ['node', '--import', 'tsx', 'server/worker.ts']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      assets:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'const fs=require("node:fs");process.exit(Date.now()-Number(fs.readFileSync("/tmp/aigak-worker-heartbeat","utf8"))<30000?0:1)',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    stop_grace_period: 30s
     restart: unless-stopped
 volumes:
   postgres_data:

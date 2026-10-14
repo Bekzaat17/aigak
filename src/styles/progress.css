@@ -1,0 +1,67 @@
+.progress-card {
+  text-align: center;
+  background: white;
+  padding: 65px 25px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.progress-card h2 {
+  font-size: 21px;
+  font-weight: 500;
+  margin: 24px 0 12px;
+}
+.progress-card p {
+  color: #95a387;
+  font-size: 12px;
+}
+.scanning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ecf3e2;
+  color: #7e9d61;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  margin: auto;
+  animation: pulse 2s ease-in-out infinite;
+}
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 40px;
+}
+.progress-steps > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #a0ac95;
+}
+.progress-steps > span > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid #d8e0cf;
+  border-radius: 50%;
+  font-size: 9px;
+}
+.progress-steps .done {
+  color: #628843;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 14px #eff5e655;
+  }
+}

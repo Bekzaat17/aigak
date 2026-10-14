@@ -1,3 +1,4 @@
+import { assertGroundedFinding } from '../server/domain/assert-grounded-finding.ts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { CheckRegistry } from '../server/inspection/CheckRegistry.ts';
@@ -161,4 +162,20 @@ test('live progress announces a check before its AI request and completion after
   );
   assert.ok(events.indexOf('start:context') < events.indexOf('request:context'));
   assert.ok(events.indexOf('request:context') < events.indexOf('end:context'));
+});
+
+test('grounding rejects fractional and out-of-range offsets rather than letting slice coerce them', () => {
+  const finding = analyzeRules([evidence])[0];
+  assert.doesNotThrow(() => assertGroundedFinding(finding, [evidence]));
+  assert.throws(
+    () => assertGroundedFinding({ ...finding, start: finding.start + 0.1 }, [evidence]),
+    /UNGROUNDED_FINDING/,
+  );
+  assert.throws(
+    () =>
+      assertGroundedFinding({ ...finding, start: 0, end: text.length + 1, quote: text }, [
+        evidence,
+      ]),
+    /UNGROUNDED_FINDING/,
+  );
 });

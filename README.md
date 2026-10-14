@@ -21,27 +21,23 @@
 
 Сборка пакета — отдельный сервис. Проверки, AI-провайдеры и форматы документов заменяются независимо.
 
-## PostgreSQL
+## Запуск одной командой
 
-Основная база теперь PostgreSQL 18. Задайте приватный POSTGRES_PASSWORD и соответствующий DATABASE_URL в .env. Дела хранятся в PostgreSQL; файлы и OCR-модели остаются в DATA_DIR. Перед первым запуском выполните перенос существующей SQLite по [руководству](docs/POSTGRESQL.md). Docker Compose предоставляет локальную базу.
+Нужен запущенный **Docker с Compose**:
 
-## Запуск
-
-Нужны **Node.js 22.13+**, npm и Google Chrome.
-
-```bash
-npm ci
-cp .env.example .env
-npm run db:up
-npm run setup:ocr
-npm run dev
+```sh
+./scripts/up.sh
 ```
 
-Откройте [localhost:4317](http://localhost:4317). Файлы хранятся локально в `data/`, записи дел — в PostgreSQL.
+Команда создаёт `.env`, если его ещё нет, собирает приложение с Chromium и OCR, запускает PostgreSQL, применяет миграции и поднимает API и отдельный worker. Откройте [localhost:4317](http://localhost:4317). Первая сборка требует времени на загрузку зависимостей.
 
-Для Продвинутой и Pro укажите `OPENAI_API_KEY` и `OPENAI_MODEL` в `.env`, затем перезапустите сервер. Другие модели и совместимые провайдеры подключаются через [AI Gateway](docs/AI_GATEWAY.md). Извлечённые тексты и материалы анализа передаются настроенному AI-провайдеру.
+Записи дел и очередь хранятся в PostgreSQL; оригиналы и шаблоны — в `data/`. Существующий `.env` и материалы сохраняются. Перенос прежней SQLite выполняется явно по [руководству PostgreSQL](docs/POSTGRESQL.md).
 
-Если Chrome отсутствует, выполните `npx playwright install chromium` и удалите `BROWSER_CHANNEL=chrome` из `.env`.
+Команды обслуживания, восстановление задач и запуск для разработки: [Очередь и Docker](docs/QUEUE_AND_DOCKER.md).
+
+Для Продвинутой и Pro укажите `OPENAI_API_KEY` и `OPENAI_MODEL` в `.env`, затем повторите `./scripts/up.sh`. Другие модели и совместимые провайдеры подключаются через [AI Gateway](docs/AI_GATEWAY.md). Извлечённые тексты и материалы анализа передаются настроенному AI-провайдеру.
+
+Для разработки без контейнеров: если Chrome отсутствует, выполните `npx playwright install chromium` и удалите `BROWSER_CHANNEL=chrome` из `.env`.
 
 ```bash
 npm run check    # стиль, архитектура, тесты, TypeScript и сборка

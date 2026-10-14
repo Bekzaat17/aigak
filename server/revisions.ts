@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { CaseRecord, Localized } from '../shared/types.ts';
 import { busyStatuses } from '../shared/types.ts';
 import type { CaseStore } from './application/ports/storage.ts';
@@ -11,14 +10,7 @@ export function syncQuestions(c: CaseRecord) {
     ...(s.legalHypotheses || []).flatMap((h) => h.missing),
   ]);
   const unique = new Map<string, Localized>();
-  for (const q of questions)
-    unique.set(
-      createHash('sha256')
-        .update(q.ru + '\n' + q.kk)
-        .digest('hex')
-        .slice(0, 24),
-      q,
-    );
+  for (const q of questions) unique.set(sha256(q.ru + '\n' + q.kk).slice(0, 24), q);
   c.followUps = [...unique].map(([id, question]) => ({
     id,
     question,

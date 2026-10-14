@@ -1,17 +1,15 @@
 import { z } from 'zod';
-import { busyStatuses } from '../../../shared/types.ts';
+import { getEditableCase } from './get-editable-case.ts';
 import type { CaseStore } from '../ports/storage.ts';
 export async function reviewRelationCommand(
-  store: Pick<CaseStore, 'get' | 'event' | 'verify'>,
+  store: Pick<CaseStore, 'get' | 'event'>,
   params: { id: string; relationId: string },
   body: unknown,
 ) {
   const input = z
     .object({ decision: z.enum(['accepted', 'rejected', 'pending']), note: z.string().max(2000) })
     .parse(body);
-  const c = await store.get(params.id);
-  if (!c) throw Error('NOT_FOUND');
-  if (busyStatuses.includes(c.status)) throw Error('CASE_BUSY');
+  const c = await getEditableCase(store, params.id);
   const relation = c.osint?.relations?.find((r) => r.id === params.relationId);
   if (!relation) throw Error('NOT_FOUND');
   Object.assign(relation, input);

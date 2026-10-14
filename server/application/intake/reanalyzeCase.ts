@@ -9,10 +9,10 @@ export async function reanalyzeCase(
   const { analysisLevel } = z
     .object({ analysisLevel: z.enum(['basic', 'advanced', 'pro']) })
     .parse(body);
-  if (queue.pendingCount >= 20) throw Error('QUEUE_FULL');
+  if ((await queue.countPending()) >= 20) throw Error('QUEUE_FULL');
   const c = await store.get(id);
   if (!c) throw Error('NOT_FOUND');
   await startRevision(store, c, analysisLevel);
-  queue.add(c.id);
+  await queue.add(c.id);
   return await store.get(c.id);
 }

@@ -3,6 +3,7 @@ import type { ProcessingStage } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 
 export class CollectionStage implements ProcessingStage {
+  readonly id = 'collection-v1';
   constructor(
     private readonly store: Pick<CaseStore, 'event'>,
     private readonly collectUrl: (c: CaseRecord) => Promise<void>,

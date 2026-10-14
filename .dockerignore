@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env
+.env.*
+data
+output
+*.log
+tmp
+test-results
+.codex
+.agents

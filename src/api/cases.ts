@@ -15,3 +15,10 @@ export async function exportCaseArchive(id: string): Promise<Blob> {
   }
   return response.blob();
 }
+
+export function mutateCase(id: string, resource: string, body: unknown, method = 'PATCH') {
+  return api<CaseRecord>(`/api/cases/${encodeURIComponent(id)}/${resource}`, {
+    method,
+    body: body instanceof FormData ? body : JSON.stringify(body),
+  });
+}

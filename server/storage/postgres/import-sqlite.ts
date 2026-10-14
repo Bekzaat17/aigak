@@ -57,7 +57,7 @@ export async function importSqlite(pool: Pool, sourceFile: string) {
   try {
     await client.query('BEGIN');
     const lease = await client.query<{ acquired: boolean }>(
-      'SELECT pg_try_advisory_xact_lock(834172, 2) AS acquired',
+      'SELECT pg_try_advisory_xact_lock(834172, 2) AND pg_try_advisory_xact_lock(834172, 3) AS acquired',
     );
     if (!lease.rows[0].acquired) throw new Error('DATABASE_IN_USE');
     await client.query('LOCK TABLE cases, templates IN EXCLUSIVE MODE');

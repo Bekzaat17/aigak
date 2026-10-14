@@ -40,6 +40,13 @@ const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], {
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
+const worker = postgres
+  ? spawn(process.execPath, ['--import', 'tsx', 'server/worker.ts'], {
+      env: { ...process.env, DATABASE_URL: databaseUrl, DATA_DIR: directory, OPENAI_API_KEY: '' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  : undefined;
+const workerExited = worker ? once(worker, 'exit') : undefined;
 const exited = once(server, 'exit');
 let browser;
 let serverOutput = '';
@@ -200,6 +207,8 @@ try {
   await browser?.close();
   if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM');
   await exited;
+  worker?.kill('SIGTERM');
+  await workerExited;
   rmSync(directory, { recursive: true, force: true });
   if (postgres) {
     try {

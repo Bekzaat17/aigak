@@ -1,44 +1,11 @@
-import { CaseProcessingService } from '../application/processing/CaseProcessingService.ts';
-import { CollectionStage } from '../application/processing/CollectionStage.ts';
-import { InspectionStage } from '../application/processing/InspectionStage.ts';
-import { ProEnrichmentStage } from '../application/processing/ProEnrichmentStage.ts';
-import { ResourceProfileStage } from '../application/processing/ResourceProfileStage.ts';
-import { Queue } from '../application/Queue.ts';
-import { collectUrl } from '../collector.ts';
-import type { AiAnalyzer } from '../inspection/contracts.ts';
-import { createInspectionFacade } from '../inspection/index.ts';
-import { DetectiveService } from '../osint/DetectiveService.ts';
-import { CertificateTransparencyProvider } from '../osint/discovery/CertificateTransparencyProvider.ts';
-import { ResourceInvestigator } from '../osint/discovery/ResourceInvestigator.ts';
-import { createOsintFacade } from '../osint/index.ts';
-import { LegalCorpusService } from '../osint/LegalCorpusService.ts';
-import { OfficialSourcesService } from '../osint/OfficialSourcesService.ts';
-import { collectContactPages } from '../osint/site-pages.ts';
 import type { CaseStore } from '../application/ports/storage.ts';
-import { createExtraction } from './create-extraction.ts';
+import type { AiAnalyzer } from '../inspection/contracts.ts';
+import { Queue } from '../application/Queue.ts';
+import { createCaseProcessor } from './create-case-processor.ts';
 
-export async function createProcessing(store: CaseStore, dataDirectory: string, ai?: AiAnalyzer) {
-  const extraction = createExtraction(store, dataDirectory);
-  const processor = new CaseProcessingService(store, [
-    new CollectionStage(
-      store,
-      (c) => collectUrl(store, c, extraction),
-      (c, e) => extraction.extract(c, e),
-    ),
-    new ResourceProfileStage(
-      store,
-      (c) => collectContactPages(store, c, extraction),
-      createOsintFacade(),
-    ),
-    new ProEnrichmentStage(
-      store,
-      new OfficialSourcesService(),
-      new LegalCorpusService(),
-      new DetectiveService(),
-      new ResourceInvestigator([new CertificateTransparencyProvider()]),
-    ),
-    new InspectionStage(store, createInspectionFacade(ai)),
-  ]);
+/** SQLite compatibility runtime used by local tests. */
+export async function createProcessing(store: CaseStore, directory: string, ai?: AiAnalyzer) {
+  const processor = createCaseProcessor(store, directory, ai);
   await processor.recoverInterrupted();
   return { processor, queue: new Queue(processor) };
 }

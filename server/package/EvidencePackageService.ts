@@ -1,4 +1,5 @@
-import { createHash } from 'node:crypto';
+import { sha256 as hash } from '../domain/sha256.ts';
+import { validatePackageEvidence } from './validate-package-evidence.ts';
 import { previewImages } from './appendices.ts';
 import type {
   ArchiveWriter,
@@ -10,8 +11,6 @@ import type {
   ReportLayout,
 } from './contracts.ts';
 import { verifyScript } from './verify-script.ts';
-
-const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 
 /** Application service: validate → structure → format → assemble. Never runs analysis or updates a case. */
 export class EvidencePackageService {
@@ -33,68 +32,7 @@ export class EvidencePackageService {
     if (c.schemaVersion !== 'aigak-package-input/1') throw new Error('INVALID_PACKAGE_VERSION');
     const templates = { ru: Buffer.from(input.templates.ru), kk: Buffer.from(input.templates.kk) };
     const evidence = new Map(input.evidenceFiles.map((file) => [file.id, Buffer.from(file.bytes)]));
-    if (
-      evidence.size !== input.evidenceFiles.length ||
-      evidence.size !== c.evidence.length ||
-      new Set(c.evidence.map((e) => e.id)).size !== c.evidence.length
-    )
-      throw new Error('INVALID_EVIDENCE_LIST');
-    for (const e of c.evidence) {
-      const bytes = evidence.get(e.id);
-      if (!bytes || bytes.length !== e.size || hash(bytes) !== e.sha256)
-        throw new Error('INTEGRITY_FAILED');
-    }
-    for (const f of c.findings) {
-      const e = c.evidence.find((e) => e.id === f.evidenceId);
-      if (
-        !e?.text ||
-        !f.quote ||
-        !Number.isInteger(f.start) ||
-        !Number.isInteger(f.end) ||
-        f.start < 0 ||
-        f.end <= f.start ||
-        e.text.slice(f.start, f.end) !== f.quote
-      )
-        throw new Error('UNGROUNDED_FINDING');
-    }
-    if (c.osint) {
-      const references = [
-        ...(c.osint.legalNorms || []).map((n) => n.evidenceId),
-        ...(c.osint.registry ? [c.osint.registry.evidenceId] : []),
-        ...c.osint.observations.map((o) => o.evidenceId),
-        ...c.osint.stages.flatMap((s) => s.evidenceIds),
-        ...(c.osint.relations || []).flatMap((r) => r.evidenceIds),
-        ...(c.osint.candidates || []).flatMap((candidate) => candidate.evidenceIds),
-      ];
-      if (references.some((id) => !evidence.has(id))) throw new Error('OSINT_PROVENANCE_MISSING');
-    }
-    for (const stage of c.inspection?.stages || [])
-      for (const h of stage.legalHypotheses || []) {
-        const allFindings = [
-          ...c.findings,
-          ...(c.inspection?.stages || []).flatMap((s) => s.observations),
-        ];
-        if (
-          !c.osint?.legalNorms?.some((n) => n.id === h.normId && n.quote.includes(h.normQuote)) ||
-          h.findingIds.some((id) => !allFindings.some((f) => f.id === id))
-        )
-          throw new Error('UNGROUNDED_LEGAL_HYPOTHESIS');
-      }
-    for (const f of c.findings)
-      if (f.region) {
-        const r = f.region;
-        if (
-          !c.evidence.some((e) => e.id === r.evidenceId && e.mime.startsWith('image/')) ||
-          ![r.x, r.y, r.width, r.height].every(Number.isFinite) ||
-          r.x < 0 ||
-          r.y < 0 ||
-          r.width <= 0 ||
-          r.height <= 0 ||
-          r.x + r.width > 1.001 ||
-          r.y + r.height > 1.001
-        )
-          throw Error('INVALID_REGION');
-      }
+    validatePackageEvidence(c, evidence, input.evidenceFiles.length);
     // Structure both formats consistently; rejected observations remain visible.
     const order = { accepted: 0, pending: 1, rejected: 2 };
     c.findings.sort((a, b) => order[a.decision] - order[b.decision]);

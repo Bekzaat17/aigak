@@ -5,6 +5,7 @@ import type { ProcessingStage } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 
 export class ResourceProfileStage implements ProcessingStage {
+  readonly id = 'resource-profile-v1';
   constructor(
     private readonly store: Pick<CaseStore, 'addEvidence' | 'event'>,
     private readonly collectContactPages: (c: CaseRecord) => Promise<OsintStage>,

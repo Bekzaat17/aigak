@@ -1,3 +1,4 @@
+import { CaseDocumentService } from '../server/application/CaseDocumentService.ts';
 import multer from 'multer';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -57,12 +58,12 @@ test('queue schedules substituted processors serially without knowing storage or
   });
   queue.add('first');
   queue.add('second');
-  assert.equal(queue.pendingCount, 1);
+  assert.equal(await queue.countPending(), 1);
   assert.deepEqual(order, ['start:first']);
   release();
   await completed;
   assert.deepEqual(order, ['start:first', 'end:first', 'start:second', 'end:second']);
-  assert.equal(queue.pendingCount, 0);
+  assert.equal(await queue.countPending(), 0);
 });
 
 test('processing accepts new stages and persists partial evidence on failure', async () => {
@@ -71,6 +72,7 @@ test('processing accepts new stages and persists partial evidence on failure', a
     let reachedLast = false;
     const processor = new CaseProcessingService(f.store, [
       {
+        id: 'stage-1',
         async execute(record) {
           await f.store.addEvidence(record, Buffer.from('retained'), {
             name: 'test.txt',
@@ -81,11 +83,13 @@ test('processing accepts new stages and persists partial evidence on failure', a
         },
       },
       {
+        id: 'stage-2',
         async execute() {
           throw new Error('FAKE_STAGE_FAILURE');
         },
       },
       {
+        id: 'stage-3',
         async execute() {
           reachedLast = true;
         },
@@ -160,10 +164,12 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
   const dependencies: HttpDependencies = {
     store: f.store,
     queue: {
-      get pendingCount() {
+      async countPending() {
         return pendingCount;
       },
-      add: (id) => queued.push(id),
+      add: async (id) => {
+        queued.push(id);
+      },
     },
     templates: {
       list: async () => [],
@@ -289,4 +295,27 @@ test('HTTP app preserves access checks, intake, review, revisions and injected d
   assert.equal(demo.status, 201);
   assert.equal((await request('/api/demo', 'POST')).status, 200);
   assert.equal((await request('/api/missing')).status, 404);
+});
+
+test('document use case substitutes report layout independently of renderer and package builder', async () => {
+  const f = await fixture();
+  try {
+    const documents = new CaseDocumentService(
+      f.store,
+      { raw: async () => Buffer.from('template') },
+      {
+        render: (_template, fields) => Buffer.from(String(fields.title)),
+      },
+      { build: async () => ({ bytes: Buffer.from('archive'), warnings: [], files: [] }) },
+      {
+        id: 'custom',
+        html: (record, lang) => `${record.id}:${lang}`,
+        fields: (_record, lang) => ({ title: lang }),
+      },
+    );
+    assert.equal(documents.preview(f.record, 'kk'), `${f.record.id}:kk`);
+    assert.equal((await documents.document(f.record, 'ru')).toString(), 'ru');
+  } finally {
+    f.close();
+  }
 });

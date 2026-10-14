@@ -21,6 +21,6 @@ export async function createDemo({ store, queue }: Pick<IntakeDependencies, 'sto
       method: 'synthetic-demo',
     },
   );
-  queue.add(c.id);
+  await queue.add(c.id);
   return { record: await store.get(c.id), created: true };
 }

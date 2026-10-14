@@ -5,6 +5,7 @@ import type { ProcessingStage } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 
 export class InspectionStage implements ProcessingStage {
+  readonly id = 'inspection-v1';
   constructor(
     private readonly store: Pick<CaseStore, 'event'>,
     private readonly inspector: {

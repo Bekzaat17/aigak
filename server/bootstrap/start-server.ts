@@ -1,4 +1,6 @@
+import { StandardReportLayout } from '../package/adapters/StandardReportLayout.ts';
 import express from 'express';
+import { InterruptedIntakeRecovery } from '../application/processing/InterruptedIntakeRecovery.ts';
 import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,17 +22,25 @@ export async function startServer() {
   if (driver === 'postgres' && !process.env.DATABASE_URL) throw new Error('DATABASE_URL_REQUIRED');
   const storage =
     driver === 'sqlite'
-      ? (await import('./create-local-storage.ts')).createLocalStorage(dataDirectory)
+      ? {
+          ...(await import('./create-local-storage.ts')).createLocalStorage(dataDirectory),
+          jobs: undefined,
+        }
       : await createPostgresStorage(dataDirectory, process.env.DATABASE_URL!);
   try {
     const { store, templates } = storage;
+    if (storage.jobs)
+      await new InterruptedIntakeRecovery(store).recover(await storage.jobs.interruptedIntakes());
     const aiAnalyzer = createAiAnalyzer();
-    const { queue } = await createProcessing(store, dataDirectory, aiAnalyzer);
+    const queue = storage.jobs
+      ? storage.jobs
+      : (await createProcessing(store, dataDirectory, aiAnalyzer)).queue;
     const documents = new CaseDocumentService(
       store,
       templates,
       new DocxRenderer(),
       createPackageService(browserOptions()),
+      new StandardReportLayout(),
     );
     const app = createApp(
       {
@@ -56,7 +66,7 @@ export async function startServer() {
       app.use(vite.middlewares);
       closeAssets = () => vite.close();
     }
-    const server = app.listen(port, '127.0.0.1', () =>
+    const server = app.listen(port, process.env.HOST || '127.0.0.1', () =>
       console.log(`aigak ready: http://localhost:${port}`),
     );
     const shutdown = () => server.close();
@@ -68,7 +78,7 @@ export async function startServer() {
       process.off('SIGINT', shutdown);
       closing ??= (async () => {
         try {
-          await queue.whenIdle();
+          if ('whenIdle' in queue) await queue.whenIdle();
           await closeAssets();
         } finally {
           await storage.close();

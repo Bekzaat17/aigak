@@ -1,9 +1,12 @@
 import type { CaseRecord, Lang } from '../../shared/types.ts';
 import { packageDocument } from '../export-document.ts';
 import { previewImages } from '../package/appendices.ts';
-import type { DocumentRenderer, PackageInput, PackageResult } from '../package/contracts.ts';
-import { templateFields } from '../package/fields.ts';
-import { reportHtml } from '../package/html.ts';
+import type {
+  DocumentRenderer,
+  PackageInput,
+  PackageResult,
+  ReportLayout,
+} from '../package/contracts.ts';
 import type { CaseDocuments } from './ports/documents.ts';
 import type { AuditWriter, EvidenceStorage } from './ports/storage.ts';
 import type { TemplateCatalog } from './ports/templates.ts';
@@ -14,6 +17,7 @@ export class CaseDocumentService implements CaseDocuments {
     private readonly templates: Pick<TemplateCatalog, 'raw'>,
     private readonly renderer: DocumentRenderer,
     private readonly packages: { build(input: PackageInput): Promise<PackageResult> },
+    private readonly layout: ReportLayout,
   ) {}
 
   preview(record: CaseRecord, lang: Lang): string {
@@ -25,14 +29,14 @@ export class CaseDocumentService implements CaseDocuments {
         record.evidence.find((e) => e.id === id)!,
       ),
     );
-    return reportHtml(document, lang);
+    return this.layout.html(document, lang);
   }
 
   async document(record: CaseRecord, lang: Lang): Promise<Buffer> {
     this.store.verify(record);
     return this.renderer.render(
       await this.templates.raw(record.templateId, lang),
-      templateFields(packageDocument(record), lang),
+      this.layout.fields(packageDocument(record), lang),
     );
   }
 

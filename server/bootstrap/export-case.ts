@@ -1,3 +1,4 @@
+import { StandardReportLayout } from '../package/adapters/StandardReportLayout.ts';
 import type { CaseRecord } from '../../shared/types.ts';
 import { CaseDocumentService } from '../application/CaseDocumentService.ts';
 import { browserOptions } from '../collector.ts';
@@ -15,8 +16,11 @@ export function exportCase(
   includePdf = true,
   service: EvidencePackageService = createPackageService(browserOptions()),
 ) {
-  return new CaseDocumentService(store, templates, new DocxRenderer(), service).archive(
-    c,
-    includePdf,
-  );
+  return new CaseDocumentService(
+    store,
+    templates,
+    new DocxRenderer(),
+    service,
+    new StandardReportLayout(),
+  ).archive(c, includePdf);
 }

@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
+import { initialSchema } from './migrations/001-initial.ts';
+import { processingJobs } from './migrations/002-processing-jobs.ts';
 
-/** Shared by startup and import; serializes schema changes without extensions. */
 export async function migratePostgresSchema(pool: Pool): Promise<void> {
   const client = await pool.connect();
   try {
@@ -9,25 +10,14 @@ export async function migratePostgresSchema(pool: Pool): Promise<void> {
     await client.query(
       'CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
     );
-    const applied = await client.query('SELECT version FROM schema_migrations WHERE version=1');
-    if (!applied.rowCount) {
-      // TEXT preserves the JSON key order used by legacy audit and revision hashes.
-      await client.query(`
-        CREATE TABLE cases (
-          id text PRIMARY KEY,
-          ordinal bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
-          body text NOT NULL CHECK (json_typeof(body::json) = 'object')
-        );
-        CREATE TABLE templates (
-          id text PRIMARY KEY,
-          ordinal bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
-          name text NOT NULL,
-          sha256 text NOT NULL
-        );
-        CREATE INDEX templates_sha256_idx ON templates(sha256);
-        CREATE SEQUENCE case_number_seq;
-        INSERT INTO schema_migrations(version) VALUES(1);
-      `);
+    for (const [index, sql] of [initialSchema, processingJobs].entries()) {
+      const version = index + 1;
+      const applied = await client.query('SELECT version FROM schema_migrations WHERE version=$1', [
+        version,
+      ]);
+      if (applied.rowCount) continue;
+      await client.query(sql);
+      await client.query('INSERT INTO schema_migrations(version) VALUES($1)', [version]);
     }
     await client.query('COMMIT');
   } catch (error) {

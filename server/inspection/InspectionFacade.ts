@@ -1,3 +1,4 @@
+import { assertGroundedFinding } from '../domain/assert-grounded-finding.ts';
 import type { AiAttempt, Finding, InspectionStage, Localized } from '../../shared/types.ts';
 import type { AiTask } from '../ai/contracts.ts';
 import { rulesAssessment } from './checks.ts';
@@ -11,13 +12,6 @@ import type {
   StrategyResolver,
 } from './contracts.ts';
 
-function validateFindings(findings: Finding[], input: InspectionInput) {
-  for (const f of findings) {
-    const e = input.evidence.find((e) => e.id === f.evidenceId);
-    if (!f.quote || !e?.text || e.text.slice(f.start, f.end) !== f.quote)
-      throw new Error('UNGROUNDED_FINDING');
-  }
-}
 function mergeFindings(existing: Finding[], incoming: Finding[], agentId: string): Finding[] {
   const result = structuredClone(existing);
   for (const finding of incoming) {
@@ -129,7 +123,8 @@ export class InspectionFacade {
             } finally {
               controller.signal.removeEventListener('abort', abortListener);
             }
-            validateFindings(result.findings || [], input);
+            for (const finding of result.findings || [])
+              assertGroundedFinding(finding, input.evidence);
             for (const finding of result.findings || [])
               finding.scope = input.evidence
                 .find((e) => e.id === finding.evidenceId)

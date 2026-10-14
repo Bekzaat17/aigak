@@ -13,11 +13,11 @@ export class Queue implements JobQueue {
 
   constructor(private readonly processor: CaseProcessor) {}
 
-  get pendingCount(): number {
+  async countPending(): Promise<number> {
     return this.pending.length;
   }
 
-  add(id: string): void {
+  async add(id: string): Promise<void> {
     this.pending.push(id);
     void this.drain();
   }

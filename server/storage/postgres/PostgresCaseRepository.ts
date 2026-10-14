@@ -1,11 +1,11 @@
-import type { Pool } from 'pg';
+import type { SqlExecutor } from './SqlExecutor.ts';
 import type { CaseRecord, CaseSummary } from '../../../shared/types.ts';
 import type { CaseRepository } from '../../application/ports/storage.ts';
 import { hydrateCase } from '../../domain/hydrate-case.ts';
 
 export class PostgresCaseRepository implements CaseRepository {
   private readonly originals = new WeakMap<CaseRecord, string>();
-  constructor(private readonly db: Pick<Pool, 'query'>) {}
+  constructor(private readonly db: SqlExecutor) {}
   private hydrate(body: string): CaseRecord {
     const record = hydrateCase(body);
     this.originals.set(record, body);
