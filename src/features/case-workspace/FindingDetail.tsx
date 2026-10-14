@@ -75,14 +75,17 @@ export function FindingDetail({
                   : t('Изображение, из которого получен текст', 'Мәтін алынған кескін')}
             </p>
             <SourcePreview c={c} e={image} lang={lang} />
-            <RegionEditor c={c} f={f} image={image} lang={lang} onChange={onChange} />
+            <details>
+              <summary>{t('Уточнить область на снимке', 'Сурет аймағын нақтылау')}</summary>
+              <RegionEditor c={c} f={f} image={image} lang={lang} onChange={onChange} />
+            </details>
           </>
         )}
         {source && (
           <details className="inline-source" open={!image}>
             <summary>
               <FileText size={16} />
-              {t('Источник цитаты', 'Дәйексөз дереккөзі')}: {source.name}
+              {t('Сохранённый текст страницы', 'Беттің сақталған мәтіні')}
             </summary>
             <SourcePreview c={c} e={source} lang={lang} />
           </details>

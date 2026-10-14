@@ -1,3 +1,4 @@
+import { legalSourceTitle } from '../../shared/legal-source.ts';
 import { verifiedFindingScreenshot } from '../../shared/finding-screenshot.ts';
 import { aiStageDetails } from '../../shared/inspection-presentation.ts';
 import { levelName } from '../../shared/inspection.ts';
@@ -135,7 +136,7 @@ export function reportHtml(c: PackageDocument, lang: Lang) {
           ${t('Предварительная оценка AI', 'AI алдын ала бағасы')}:
           ${c.likelihood === null ? t('не рассчитана', 'есептелмеген') : c.likelihood + '% · ' + t('не откалибрована', 'калибрленбеген')}
         </p>
-        ${(c.osint?.legalNorms || []).map((n) => `<p><a href="${escape(n.sourceUrl)}">${escape(n.title?.[lang] || n.documentId || n.id)} · ${t('статья', 'бап')} ${escape(n.article)}</a> · ${escape(n.documentId || n.id)}</p>`).join('')}
+        ${(c.osint?.legalNorms || []).map((n) => `<p><a href="${escape(n.sourceUrl)}">${escape(legalSourceTitle(n, lang))} · ${t('статья', 'бап')} ${escape(n.article)}</a> · ${escape(n.documentId || n.id)}</p>`).join('')}
         ${c.analysisLevel === 'pro' ? '<h2>Pro</h2><p>' + escape(dossierText(c, lang)) + '</p>' : ''}
         ${c.inspection ? `<h2>${t('Ход анализа', 'Талдау барысы')} · ${escape(levelName(c.analysisLevel)[lang])}</h2><p>${c.inspection.status === 'partial' ? t('Частичная проверка', 'Ішінара тексеру') : t('Проверки завершены', 'Тексерулер аяқталды')}</p>${c.inspection.stages.map((s) => `<h3>${escape(s.name[lang])}</h3><p>${escape(s.status)} · v${escape(s.version)} · ${s.durationMs} ms</p><p>${escape(s.summary[lang])}</p><p>${escape(aiStageDetails(s, lang))}</p>`).join('')}` : ''}
         ${c.osint ? '<h2>OSINT</h2><p>' + escape(osintSummary(c.osint, lang)) + '</p>' : ''}

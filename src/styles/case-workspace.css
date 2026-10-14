@@ -413,3 +413,32 @@
 .image-dialog p {
   font-size: 12px;
 }
+
+/* Evidence and official references should read as links, not unmarked body text. */
+.legal-source-link a,
+.license-summary a,
+.access-observations a,
+.published-resources a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.legal-references article + article,
+.published-resources article + article {
+  border-top: 1px solid #dfe6df;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.license-summary dl {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 3fr);
+  gap: 8px 18px;
+  margin: 20px 0;
+}
+.license-summary dt {
+  color: #607566;
+}
+.license-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -1,66 +1,64 @@
-import type { Lang } from '../../../shared/types';
+import type { Lang, CaseRecord } from '../../../shared/types';
 import { translator } from '../../i18n/translate.ts';
-import { Network } from 'lucide-react';
-import type { CaseRecord } from '../../../shared/types';
-import { ResourceGraph } from './ResourceGraph.tsx';
+import { publishedResources } from './published-resources';
 export interface ResourceRelationsProps {
   current: CaseRecord;
   lang: Lang;
   onChange?: (record: CaseRecord) => void;
 }
-export function ResourceRelations({ current, lang, onChange }: ResourceRelationsProps) {
+export function ResourceRelations({ current, lang }: ResourceRelationsProps) {
   const t = translator(lang);
-  const r = current.osint;
-  if (!r) return null;
+  const links = publishedResources(current);
   return (
-    <details className="resource-group">
-      <summary>
-        <Network size={21} />
-        <span>
-          {t('Связи с другими ресурсами', 'Басқа ресурстармен байланыстар')}
-          <small>
-            {r.relations?.length || 0} {t('технических связей', 'техникалық байланыс')}
-          </small>
-        </span>
-        <span className="expand-label">{t('Подробнее', 'Толығырақ')}</span>
-      </summary>
-      <div className="resource-group-body">
+    <section className="panel published-resources">
+      <h3>{t('Связи с другими ресурсами', 'Басқа ресурстармен байланыстар')}</h3>
+      <p>
+        {t(
+          'Опубликованные ссылки и совпадения реквизитов. Общий владелец не установлен; IP-адреса вынесены в детали анализа.',
+          'Жарияланған сілтемелер мен деректемелер сәйкестіктері. Ортақ ие анықталмаған; IP мекенжайлары талдау мәліметтеріне шығарылды.',
+        )}
+      </p>
+      {!links.length && (
         <p>
           {t(
-            'Это технические наблюдения. Зеркалирование и общий владелец не подтверждены.',
-            'Бұл — техникалық бақылаулар. Айна сайт пен ортақ ие расталмаған.',
+            'В сохранённых материалах ссылки на другие ресурсы и социальные сети не найдены.',
+            'Сақталған материалдардан басқа ресурстар мен әлеуметтік желілерге сілтемелер табылмады.',
           )}
         </p>
-        {!r.relations?.length && (
+      )}
+      {links.map((link) => (
+        <article key={link.url}>
+          <h4>
+            <a href={link.url} target="_blank" rel="noreferrer">
+              {new URL(link.url).hostname}
+              {new URL(link.url).pathname === '/' ? '' : new URL(link.url).pathname}
+            </a>
+          </h4>
           <p>
-            {current.analysisLevel === 'pro'
+            {link.basis === 'published'
               ? t(
-                  'В доступных источниках связи не обнаружены.',
-                  'Қолжетімді дереккөздерден байланыстар табылмады.',
+                  'Ссылка найдена в сохранённых материалах сайта.',
+                  'Сілтеме сайттың сақталған материалдарынан табылды.',
                 )
-              : t(
-                  'Поиск связей выполняется в режиме Pro.',
-                  'Байланыстарды іздеу Pro режимінде орындалады.',
-                )}
+              : link.basis === 'shared_contact'
+                ? t('Совпадает опубликованный контакт: ', 'Жарияланған байланыс сәйкес: ') +
+                  link.detail
+                : t('Совпадает заявленный БИН: ', 'Көрсетілген БСН сәйкес: ') + link.detail}
           </p>
-        )}
-        <ResourceGraph c={current} lang={lang} onChange={onChange} />
-        {r.candidates?.map((candidate) => (
-          <p key={candidate.hostname}>
-            {candidate.hostname} ·{' '}
-            {candidate.status === 'content_checked'
-              ? t(
-                  'Содержимое сохранено и передано на анализ',
-                  'Мазмұны сақталып, талдауға жіберілді',
-                )
-              : candidate.status === 'dns_checked'
-                ? t('DNS проверен; содержимое не изучено', 'DNS тексерілді; мазмұны зерттелмеді')
-                : candidate.status === 'unavailable'
-                  ? t('Проверка недоступна', 'Тексеру қолжетімсіз')
-                  : t('Не проверен: лимит обхода', 'Тексерілмеді: аралау шегі')}
-          </p>
-        ))}
-      </div>
-    </details>
+          {link.sourceUrl && (
+            <a href={link.sourceUrl} target="_blank" rel="noreferrer">
+              {t('Страница-источник', 'Дереккөз беті')}
+            </a>
+          )}
+          {link.evidenceId && (
+            <p>
+              <a href={`/api/cases/${current.id}/evidence/${link.evidenceId}`} download>
+                {t('Сохранённое основание связи', 'Байланыстың сақталған негізі')}
+              </a>
+            </p>
+          )}
+        </article>
+      ))}
+    </section>
   );
 }

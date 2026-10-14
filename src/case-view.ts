@@ -69,10 +69,18 @@ export function contentVerdict(
 }
 
 export function primaryMaterials(c: CaseRecord) {
-  return currentEvidence(c).filter(
-    (e) =>
-      e.kind === 'original' || e.mime.startsWith('image/') || (e.kind === 'text' && !e.parentId),
-  );
+  return currentEvidence(c).filter((e) => {
+    if (materialFindings(c, e).length) return true;
+    if (
+      e.method.startsWith('detective-') ||
+      e.method.startsWith('official-') ||
+      e.kind === 'metadata' ||
+      e.method === 'finding-verification-dom'
+    )
+      return false;
+    if (e.method === 'finding-screenshot') return false;
+    return e.mime.startsWith('image/') || (e.kind === 'text' && !!e.text?.trim());
+  });
 }
 export function materialFindings(c: CaseRecord, e: Evidence) {
   return c.findings.filter(

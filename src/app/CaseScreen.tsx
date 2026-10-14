@@ -10,7 +10,8 @@ import { AnalysisLimitations } from '../features/case-workspace/AnalysisLimitati
 import { AnalysisMetrics } from '../features/inspection-trace/AnalysisMetrics.tsx';
 import { CaseTechnicalDetails } from '../features/inspection-trace/CaseTechnicalDetails.tsx';
 import { PackageWorkspace } from '../features/review/PackageWorkspace.tsx';
-import { ProDossier } from '../features/dossier/ProDossier.tsx';
+import { ResourceGraph } from '../features/resource-graph/ResourceGraph';
+import { ReviewCycle } from '../features/review-cycle/ReviewCycle';
 import { OsintPanel } from '../OsintPanel';
 import type { CaseScreenProps } from '../features/case-workspace/contracts.ts';
 export function CaseScreen({
@@ -45,11 +46,6 @@ export function CaseScreen({
       ) : (
         <>
           <ResultSummary c={current} lang={lang} onReview={reviewFindings} />
-          <CollectionQuality c={current} lang={lang} />
-          <AnalysisMetrics current={current} lang={lang} />
-          {current.analysisLevel === 'pro' && (
-            <ProDossier c={current} lang={lang} onReview={() => openTab('package')} />
-          )}
           <div id="result-sections" />
           <CaseTabs current={current} lang={lang} tab={tab} openTab={openTab} />
           {tab === 'analysis' && (
@@ -82,8 +78,33 @@ export function CaseScreen({
               exportZip={exportZip}
             />
           )}
-          <CaseTechnicalDetails current={current} lang={lang} />
-          {current.issues.length > 0 && <AnalysisLimitations current={current} lang={lang} />}
+          {tab === 'details' && (
+            <section>
+              <h2>
+                {lang === 'ru' ? 'История и детали анализа' : 'Талдау тарихы мен мәліметтері'}
+              </h2>
+              <AnalysisMetrics current={current} lang={lang} />
+              <CollectionQuality c={current} lang={lang} />
+              <CaseTechnicalDetails current={current} lang={lang} />
+              <details className="technical-details">
+                <summary>
+                  {lang === 'ru'
+                    ? 'Технические связи и адреса серверов'
+                    : 'Техникалық байланыстар және сервер мекенжайлары'}
+                </summary>
+                <ResourceGraph c={current} lang={lang} onChange={setCurrent} />
+              </details>
+              <ReviewCycle
+                key={current.id + ':' + (current.revisions?.length || 0)}
+                c={current}
+                lang={lang}
+                busy={busy}
+                update={setCurrent}
+                run={run}
+              />
+              {current.issues.length > 0 && <AnalysisLimitations current={current} lang={lang} />}
+            </section>
+          )}
         </>
       )}
     </section>

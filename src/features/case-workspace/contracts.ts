@@ -1,5 +1,5 @@
 import type { CaseRecord, Decision, Finding, Lang } from '../../../shared/types';
-export type CaseTab = 'analysis' | 'osint' | 'evidence' | 'law' | 'package';
+export type CaseTab = 'analysis' | 'osint' | 'evidence' | 'law' | 'package' | 'details';
 export interface CaseScreenProps {
   lang: Lang;
   current: CaseRecord;

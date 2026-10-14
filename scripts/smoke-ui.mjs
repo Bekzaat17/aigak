@@ -104,11 +104,12 @@ try {
   await page.getByRole('dialog', { name: 'Шаблоны', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Как это работает', exact: false }).click();
-  await page.getByRole('heading', { name: 'От материала до пакета', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'От ссылки до понятного отчёта', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Открыть пример', exact: false }).click();
   await page.locator('.finding-index button').first().waitFor();
   assert.ok((await page.locator('.finding-index button').count()) > 0);
+  await page.getByRole('button', { name: 'История и детали', exact: true }).click();
   await page.getByRole('region', { name: 'Время и расход анализа', exact: true }).waitFor();
   assert.ok((await page.locator('.analysis-metrics').innerText()).includes('Весь цикл'));
   assert.ok((await page.locator('.analysis-metrics .token-usage').innerText()).includes('Токены'));
@@ -117,7 +118,8 @@ try {
   const accepted = page.getByRole('button', { name: 'Подтвердить', exact: true });
   await accepted.click();
   await page.locator('.decision-options button:first-child[aria-pressed="true"]').waitFor();
-  await page.getByRole('button', { name: 'Проверка и пакет', exact: true }).click();
+  await page.getByRole('button', { name: 'Отчёт и документы', exact: true }).click();
+  await page.getByText('Подготовить официальное обращение', { exact: true }).click();
   await page.locator('.review-form').waitFor();
   await page.getByRole('button', { name: 'Предпросмотр стандартного отчёта', exact: true }).click();
   await page.locator('iframe').waitFor();
@@ -128,11 +130,12 @@ try {
     await page.getByRole('button', { name: 'ҚАЗ', exact: true }).getAttribute('aria-pressed'),
     'true',
   );
-  await page.getByRole('button', { name: /Тарих/ }).click();
+  await page.getByRole('button', { name: /^Тарих \d/ }).click();
   await page.getByRole('dialog', { name: 'Тарих', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'RU', exact: true }).click();
+  await page.getByRole('button', { name: 'История и детали', exact: true }).click();
   await page.getByText('Добавить материалы', { exact: true }).click();
   await page
     .getByRole('textbox', { name: 'Дополнительный текст', exact: true })
@@ -151,7 +154,7 @@ try {
   assert.ok(
     await page.locator('html').evaluate((element) => element.scrollWidth <= element.clientWidth),
   );
-  await page.getByRole('button', { name: /История/ }).click();
+  await page.getByRole('button', { name: /^История \d/ }).click();
   await page.locator('.history-list button').first().click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   // Hold a mutation response while switching cases: it must not restore the old case.
@@ -185,7 +188,7 @@ try {
   await page.getByRole('button', { name: 'Отклонить', exact: true }).click();
   await held;
   try {
-    await page.getByRole('button', { name: /История/ }).click();
+    await page.getByRole('button', { name: /^История \d/ }).click();
     await page.locator('.history-list button').filter({ hasText: 'UI isolation test' }).click();
     await page.getByRole('heading', { name: 'UI isolation test', exact: true }).waitFor();
   } finally {

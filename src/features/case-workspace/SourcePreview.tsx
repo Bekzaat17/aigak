@@ -1,3 +1,4 @@
+import { materialLabel } from './material-label';
 import { Download, FileText, Search, X } from 'lucide-react';
 import { useRef } from 'react';
 import type { CaseRecord, Evidence, Lang } from '../../../shared/types';
@@ -24,7 +25,7 @@ export function SourcePreview({
           onClick={() => dialog.current?.showModal()}
           aria-label={t('Увеличить изображение', 'Кескінді үлкейту')}
         >
-          <img src={href(c, e)} alt={e.name} loading="lazy" />
+          <img src={href(c, e)} alt={materialLabel(c, e, lang)} loading="lazy" />
           <span>
             <Search size={15} />
             {t('Увеличить', 'Үлкейту')}
@@ -39,10 +40,10 @@ export function SourcePreview({
       <div className="source-caption">
         <span>
           <FileText size={15} />
-          {e.name}
+          {materialLabel(c, e, lang)}
           <small>{stamp(e.createdAt, lang)}</small>
         </span>
-        <a href={href(c, e)} download={e.name}>
+        <a href={href(c, e)} download={materialLabel(c, e, lang)}>
           <Download size={16} />
           {t('Оригинал', 'Түпнұсқа')}
         </a>
@@ -69,6 +70,7 @@ export function SourcePreview({
             t('Загруженный материал', 'Жүктелген материал')
           )}
         </p>
+        <p>{e.name}</p>
         <code>SHA-256: {e.sha256}</code>
       </details>
       {e.mime.startsWith('image/') && (
@@ -84,8 +86,8 @@ export function SourcePreview({
               <X size={17} />
               {t('Закрыть', 'Жабу')}
             </button>
-            <p>{e.name}</p>
-            <img src={href(c, e)} alt={e.name} />
+            <p>{materialLabel(c, e, lang)}</p>
+            <img src={href(c, e)} alt={materialLabel(c, e, lang)} />
           </div>
         </dialog>
       )}

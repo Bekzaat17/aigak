@@ -1,3 +1,4 @@
+import { legalSourceTitle } from '../../shared/legal-source.ts';
 import { buildDossier } from '../../shared/dossier.ts';
 import type { Lang } from '../../shared/types.ts';
 import { appendixNumber } from './appendices.ts';
@@ -23,9 +24,7 @@ export function dossierText(c: PackageDocument, lang: Lang) {
     ...d.legal.map((h) => {
       const norm = c.osint?.legalNorms?.find((n) => n.id === h.normId);
       return [
-        norm?.title?.[lang] ||
-          norm?.documentId ||
-          t('Источник не установлен', 'Дереккөз анықталмаған'),
+        norm ? legalSourceTitle(norm, lang) : t('Источник не установлен', 'Дереккөз анықталмаған'),
         t('Статья', 'Бап') + ' ' + norm?.article,
         h.normQuote,
         h.reason[lang],

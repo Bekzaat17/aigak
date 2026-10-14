@@ -95,7 +95,13 @@ export function parseLaw(html: string) {
     if (start < 0 || end < 0) throw new Error('LAW_FORMAT_CHANGED');
     const quote = text.slice(start, end).trim();
     if (quote.length > 20000 || quote.length < 50) throw new Error('LAW_FORMAT_CHANGED');
-    return { id: 'KZ-Z070000219-article-' + article, article, quote };
+    return {
+      id: 'KZ-Z070000219-article-' + article,
+      article,
+      quote,
+      documentId: 'Z070000219_',
+      title: { ru: 'Об игорном бизнесе', kk: 'Ойын бизнесі туралы' },
+    };
   });
 }
 /** External sources are collected before reasoning; errors preserve the existing case. */

@@ -21,7 +21,8 @@ export function CaseTabs({ current, lang, tab, openTab }: Props) {
           },
           { id: 'osint', label: t('О ресурсе', 'Ресурс туралы') },
           { id: 'law', label: t('Закон', 'Заң') },
-          { id: 'package', label: t('Проверка и пакет', 'Тексеру және пакет') },
+          { id: 'package', label: t('Отчёт и документы', 'Есеп және құжаттар') },
+          { id: 'details', label: t('История и детали', 'Тарих және мәліметтер') },
         ] as const
       ).map((x) => (
         <button

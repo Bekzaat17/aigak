@@ -1,3 +1,5 @@
+import { materialLabel } from './material-label';
+import { currentEvidence } from '../../../shared/current-evidence';
 import { FileText, Image } from 'lucide-react';
 import { useState } from 'react';
 import type { CaseRecord, Evidence, Lang } from '../../../shared/types';
@@ -8,7 +10,7 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
   const [kind, setKind] = useState('main');
   const [selected, setSelected] = useState('');
-  const list = c.evidence.filter(
+  const list = (kind === 'all' ? c.evidence : currentEvidence(c)).filter(
     (e) =>
       kind === 'all' ||
       (kind === 'images'
@@ -24,22 +26,14 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
         ? t('Снимок проверяемой страницы', 'Тексерілетін беттің суреті')
         : e.kind === 'metadata'
           ? t('Технические сведения', 'Техникалық мәліметтер')
-          : t(
-              'Исходный материал · связь с находкой не установлена',
-              'Бастапқы материал · белгімен байланысы анықталмаған',
-            );
+          : t('Контекст проверяемой страницы', 'Тексерілетін беттің мәнмәтіні');
   };
   const chosen =
     list.find((e) => e.id === selected) ||
     list.find((e) => e.mime.startsWith('image/') && materialFindings(c, e).length > 0) ||
     list.find((e) => e.capture?.quality === 'adequate') ||
     list[0];
-  const title = (e: Evidence) =>
-    e.method === 'playwright-screenshot'
-      ? t('Снимок страницы', 'Беттің суреті')
-      : e.method === 'http-get'
-        ? t('Исходная веб-страница', 'Бастапқы веб-бет')
-        : e.name;
+  const title = (e: Evidence) => materialLabel(c, e, lang);
   return (
     <section>
       <div className="workspace-heading">
@@ -47,7 +41,7 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
           <h2>{t('Сохранённые материалы', 'Сақталған материалдар')}</h2>
           <p>
             {t(
-              'Скриншоты и оригиналы — здесь. Технические файлы доступны в «Все файлы».',
+              'Скриншоты и оригиналы — здесь. Технические файлы доступны в «Архив и технические файлы».',
               'Скриншоттар мен түпнұсқалар осында. Техникалық файлдар «Барлық файлдар» бөлімінде.',
             )}
           </p>
@@ -55,9 +49,11 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
         <label>
           {t('Показать', 'Көрсету')}
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="main">{t('Оригиналы и снимки', 'Түпнұсқалар мен суреттер')}</option>
+            <option value="main">
+              {t('Доказательства и контекст', 'Түпнұсқалар мен суреттер')}
+            </option>
             <option value="images">{t('Только изображения', 'Тек кескіндер')}</option>
-            <option value="all">{t('Все файлы', 'Барлық файлдар')}</option>
+            <option value="all">{t('Архив и технические файлы', 'Барлық файлдар')}</option>
           </select>
         </label>
       </div>
@@ -88,7 +84,7 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
       ) : (
         <div className="empty-result">
           {t(
-            'В этой группе файлов нет. Выберите «Все файлы».',
+            'В этой группе файлов нет. Выберите «Архив и технические файлы».',
             'Бұл топта файлдар жоқ. «Барлық файлдар» таңдаңыз.',
           )}
         </div>
