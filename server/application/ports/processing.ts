@@ -6,7 +6,7 @@ export interface CaseProcessor {
 
 export interface ProcessingStage {
   readonly id: string;
-  execute(record: CaseRecord): Promise<void>;
+  execute(record: CaseRecord, context?: import('./execution').ProcessingContext): Promise<void>;
 }
 
 export interface JobQueue {

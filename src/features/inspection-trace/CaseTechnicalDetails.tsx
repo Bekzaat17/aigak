@@ -1,9 +1,10 @@
+import { ScenarioTrace } from './ScenarioTrace';
 import type { CaseRecord, Lang } from '../../../shared/types';
 import { translator } from '../../i18n/translate.ts';
 import { AuditTimeline } from './AuditTimeline.tsx';
 import { InspectionTrace } from './InspectionTrace.tsx';
 type Props = {
-  current: Pick<CaseRecord, 'inspection' | 'analysisLevel' | 'audit' | 'osint'>;
+  current: Pick<CaseRecord, 'inspection' | 'analysisLevel' | 'audit' | 'osint' | 'scenarioRun'>;
   lang: Lang;
 };
 export function CaseTechnicalDetails({ current, lang }: Props) {
@@ -16,6 +17,7 @@ export function CaseTechnicalDetails({ current, lang }: Props) {
           'Талдау қалай жүргізілді · кезеңдер мен журнал',
         )}
       </summary>
+      {current.scenarioRun && <ScenarioTrace run={current.scenarioRun} lang={lang} />}
       {current.inspection && (
         <InspectionTrace
           inspection={current.inspection}

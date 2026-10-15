@@ -1,3 +1,4 @@
+import type { ScenarioRun } from './agent-run';
 import type { AuthenticationRequest, AuthenticationReport } from './authentication';
 import type { CollectionReport } from './collection.ts';
 import type { OsintReport } from './osint.ts';
@@ -139,6 +140,7 @@ export interface FollowUp {
   evidenceIds: string[];
 }
 export interface CaseRevision {
+  scenarioRun?: ScenarioRun;
   authentication?: AuthenticationReport;
   collection?: CollectionReport;
   sha256?: string;
@@ -161,6 +163,7 @@ export interface CaseRevision {
   reviewedAt?: string;
 }
 export interface CaseRecord {
+  scenarioRun?: ScenarioRun;
   authenticationRequest?: AuthenticationRequest;
   authentication?: AuthenticationReport;
   registrationAttempted?: boolean;

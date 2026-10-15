@@ -3,8 +3,11 @@ import type { PublicAuthProfile } from '../../shared/authentication';
 export interface AuthForm {
   url: string;
   fields: Record<string, string>;
+  fieldHints?: Record<string, string>;
   submitSelector: string;
   submitUrls: string[];
+  accountEndpoints?: boolean;
+  preservePage?: boolean;
 }
 export interface AuthProfile extends PublicAuthProfile {
   login: AuthForm;
@@ -19,4 +22,5 @@ export interface VerificationInbox {
 export interface AuthenticatedPage {
   page: Page;
   profile: AuthProfile;
+  secrets?: string[];
 }

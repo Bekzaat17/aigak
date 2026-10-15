@@ -1,3 +1,5 @@
+import type { Page } from 'playwright';
+import type { BrowserSession } from '../collection/browser/contracts';
 import type { CaseRecord } from '../../shared/types';
 import type { CollectionStorage, UrlCollectionMethod } from '../collection/contracts';
 import type { BrowserSessionFactory } from '../collection/browser/contracts';
@@ -19,6 +21,19 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
     private readonly agent: Pick<BrowserAuthenticationAgent, 'authenticate'>,
     private readonly open: BrowserSessionFactory,
     private readonly sessions: CaseBrowserSessions,
+    private readonly interactions:
+      | { requestCode(caseId: string, signal: AbortSignal): Promise<string | undefined> }
+      | undefined = undefined,
+    private readonly automatic?: {
+      prepare(
+        id: string,
+        url: string,
+        page: Page,
+        observe: BrowserSession['observe'],
+        signal: AbortSignal,
+        onAction: (a: import('../../shared/agent-run').AgentAction) => void,
+      ): Promise<AuthProfile>;
+    },
   ) {}
   supports(c: CaseRecord) {
     return !!c.authenticationRequest;
@@ -34,10 +49,13 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
       evidenceIds: [],
       durationMs: 0,
     } as NonNullable<CaseRecord['authentication']>);
-    const profile = this.profiles.find(
+    let profile = this.profiles.find(
       (p) => p.id === request.profileId && p.origin === new URL(c.sourceUrl!).origin,
     );
-    if (!profile) {
+    if (
+      !profile &&
+      !(request.profileId === 'automatic' && request.mode === 'register' && this.automatic)
+    ) {
       report.reason = 'PROFILE_UNAVAILABLE';
       return;
     }
@@ -54,6 +72,18 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
     let kept = false;
     try {
       signal.throwIfAborted();
+      const page = await session.context.newPage();
+      if (!profile && this.automatic)
+        profile = await this.automatic.prepare(
+          'automatic-' + c.id,
+          c.sourceUrl!,
+          page,
+          session.observe,
+          signal,
+          (a) => c.scenarioRun?.actions.push(a),
+        );
+      if (!profile) throw Error('PROFILE_UNAVAILABLE');
+      const activeProfile = profile;
       const form = request.mode === 'register' ? profile.register : profile.login;
       let submitting = true;
       let submissions = 0;
@@ -64,19 +94,28 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
           if (
             submitting &&
             ++submissions <= 8 &&
-            url.origin === profile.origin &&
-            form?.submitUrls.includes(url.href)
+            url.origin === activeProfile.origin &&
+            (form?.submitUrls.includes(url.href) ||
+              (form?.accountEndpoints &&
+                /\/(?:auth|login|register|registration|signup|session|verify)(?:\/|$)/i.test(
+                  url.pathname,
+                )))
           )
             await route.continue();
           else await route.abort();
         } else await route.fallback();
       });
-      const page = await session.context.newPage();
       if (request.mode === 'register') {
         c.registrationAttempted = true;
         await this.store.save(c);
       }
-      const authenticated = await this.agent.authenticate(page, profile, request.mode, signal);
+      const detectedSecrets: string[] = [];
+      const authenticated = await this.agent.authenticate(page, profile, request.mode, signal, {
+        observe: session.observe,
+        requestCode: this.interactions ? (s) => this.interactions!.requestCode(c.id, s) : undefined,
+        onAction: (a) => c.scenarioRun?.actions.push(a),
+        onSecret: (value) => detectedSecrets.push(value),
+      });
       submitting = false;
       if (!authenticated) {
         report.status = 'action_required';
@@ -84,6 +123,14 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
         return;
       }
       report.status = 'authenticated';
+      if (!profile.readUrls.length) {
+        const destination = new URL(page.url());
+        profile.readUrls = [
+          /verify|confirm|activate/i.test(destination.pathname)
+            ? profile.origin + '/'
+            : destination.origin + destination.pathname,
+        ];
+      }
       for (const url of profile.readUrls) {
         signal.throwIfAborted();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
@@ -96,9 +143,12 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
           break;
         }
         const text = await page.locator('body').innerText();
-        const secrets = Object.entries(form?.fields || {})
-          .filter(([selector]) => /pass|secret/i.test(selector))
-          .map(([, value]) => value);
+        const secrets = [
+          ...detectedSecrets,
+          ...Object.entries(form?.fields || {})
+            .filter(([selector]) => /pass|secret/i.test(selector))
+            .map(([, value]) => value),
+        ];
         if (secrets.some((value) => text.includes(value))) throw Error('SECRET_VISIBLE');
         let html = await sanitizedDom(page);
         for (const value of secrets) html = html.replaceAll(value, '[secret removed]');
@@ -122,7 +172,7 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
           report.evidenceIds.push(e.id);
         }
       }
-      this.sessions.set(c.id, { ...session, page, profile });
+      this.sessions.set(c.id, { ...session, page, profile, secrets: detectedSecrets });
       kept = true;
     } catch (error) {
       if (

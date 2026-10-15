@@ -35,6 +35,7 @@ export async function startRevision(
       inspection: c.inspection,
       osint: c.osint,
       collection: c.collection,
+      scenarioRun: c.scenarioRun,
       authentication: c.authentication,
       assessment: c.assessment,
       likelihood: c.likelihood,
@@ -51,6 +52,7 @@ export async function startRevision(
   );
   const snapshot = c.revisions.at(-1)!;
   snapshot.sha256 = sha256(JSON.stringify(snapshot));
+  delete c.scenarioRun;
   c.analysisLevel = level;
   c.useAi = level !== 'basic';
   c.status = 'queued';

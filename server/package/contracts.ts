@@ -11,6 +11,7 @@ import type {
 
 /** Versioned hand-off from any analysis workflow. No queue, storage or AI dependency. */
 export interface PackageDocument {
+  scenarioRun?: import('../../shared/agent-run').ScenarioRun;
   materialsPending?: boolean;
   legalReview?: import('../../shared/types.ts').CaseRecord['legalReview'];
   previewImages?: Record<string, string>;

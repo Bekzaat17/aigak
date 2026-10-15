@@ -6,14 +6,18 @@ export class CollectionStage implements ProcessingStage {
   readonly id = 'collection-v2';
   constructor(
     private readonly store: Pick<CaseStore, 'event'>,
-    private readonly collectUrl: (c: CaseRecord) => Promise<void>,
+    private readonly collectUrl: (c: CaseRecord, signal?: AbortSignal) => Promise<void>,
     private readonly extractFile: (c: CaseRecord, e: Evidence) => Promise<void>,
   ) {}
-  async execute(c: CaseRecord): Promise<void> {
+  async execute(
+    c: CaseRecord,
+    context?: import('../ports/execution').ProcessingContext,
+  ): Promise<void> {
     c.status = 'collecting';
     c.step = { ru: 'Фиксация и извлечение текста', kk: 'Тіркеу және мәтінді алу' };
     await this.store.event(c, 'collection.started');
-    if (c.sourceType === 'url' && (!c.reanalysis || c.refreshSources)) await this.collectUrl(c);
+    if (c.sourceType === 'url' && (!c.reanalysis || c.refreshSources))
+      await this.collectUrl(c, context?.signal);
     for (const e of [...c.evidence])
       if (e.kind === 'original' && !c.evidence.some((child) => child.parentId === e.id))
         await this.extractFile(c, e);

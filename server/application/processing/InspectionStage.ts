@@ -15,11 +15,22 @@ export class InspectionStage implements ProcessingStage {
         input: InspectionInput,
         onStage?: (stage: StageRecord) => void | Promise<void>,
         onStart?: (stage: { id: string; name: { ru: string; kk: string } }) => void | Promise<void>,
+        signal?: AbortSignal,
       ): Promise<InspectionResult>;
     },
   ) {}
-  async execute(c: CaseRecord): Promise<void> {
+  async execute(
+    c: CaseRecord,
+    context?: import('../ports/execution').ProcessingContext,
+  ): Promise<void> {
     c.status = 'analyzing';
+    c.findings = [];
+    c.likelihood = null;
+    delete c.inspection;
+    c.assessment = {
+      ru: 'Проверка содержимого ещё не завершена.',
+      kk: 'Мазмұнды тексеру әлі аяқталмады.',
+    };
     c.step = {
       ru: 'Поиск признаков и проверка цитат',
       kk: 'Белгілерді іздеу және дәйексөздерді тексеру',
@@ -38,6 +49,7 @@ export class InspectionStage implements ProcessingStage {
         c.step = stage.name;
         await this.store.event(c, 'inspection.started', stage.id);
       },
+      context?.signal,
     );
     c.findings = result.findings;
     c.assessment = result.assessment;

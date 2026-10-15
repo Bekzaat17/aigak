@@ -6,6 +6,7 @@ import type { CaseStore } from '../application/ports/storage.ts';
 import type { TemplateCatalog } from '../application/ports/templates.ts';
 
 export interface HttpDependencies {
+  authChallenges?: import('../application/ports/auth-challenges').AuthChallenges;
   authProfiles?: AuthProfileCatalog;
   store: CaseStore;
   documents: CaseDocuments;

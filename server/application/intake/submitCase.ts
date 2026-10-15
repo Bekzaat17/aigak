@@ -26,7 +26,9 @@ export async function submitCase(
       input.sourceType !== 'url' ||
       !profile ||
       !input.authMode ||
-      new URL(input.sourceUrl!).origin !== profile.origin ||
+      (profile.origin === '*'
+        ? input.authMode !== 'register' || new URL(input.sourceUrl!).protocol !== 'https:'
+        : new URL(input.sourceUrl!).origin !== profile.origin) ||
       (input.authMode === 'register' && !profile.registration)
     )
       throw Error('AUTH_PROFILE_NOT_ALLOWED');

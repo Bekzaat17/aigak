@@ -29,6 +29,7 @@ export function packageDocument(c: CaseRecord): PackageDocument {
     redirects: c.redirects,
     legalReview: c.legalReview,
     materialsPending: c.materialsPending,
+    scenarioRun: c.scenarioRun,
     followUps: c.followUps,
     revisions: c.revisions,
   });

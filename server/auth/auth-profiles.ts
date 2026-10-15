@@ -6,6 +6,7 @@ const form = z.object({
   fields: z
     .record(z.string().min(1), z.string().min(1))
     .refine((f) => Object.keys(f).length > 0 && Object.keys(f).length <= 15),
+  fieldHints: z.record(z.string().max(200)).optional(),
   submitSelector: z.string().min(1),
   submitUrls: z.array(z.string().url()).min(1).max(5),
 });

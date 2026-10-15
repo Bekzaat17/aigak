@@ -22,7 +22,7 @@ export function AuthenticationOptions({
       <summary>{t('Проверка после входа · Pro', 'Кіргеннен кейін тексеру · Pro')}</summary>
       <p>
         {t(
-          'Агент использует подготовленный профиль для входа или регистрации, затем проверяет разрешённые внутренние страницы. В отчёте они отмечаются отдельно.',
+          'Выберите разрешённый сценарий: вход по подготовленному профилю или автоматическая регистрация с временной почтой. Закрытые страницы отмечаются в отчёте отдельно.',
           'Агент дайын профильмен кіріп немесе тіркеліп, рұқсат етілген ішкі беттерді тексереді. Есепте олар бөлек белгіленеді.',
         )}
       </p>
@@ -34,7 +34,7 @@ export function AuthenticationOptions({
               value={profileId}
               onChange={(e) => {
                 setProfileId(e.target.value);
-                setMode('login');
+                setMode(e.target.value === 'automatic' ? 'register' : 'login');
               }}
             >
               <option value="">{t('Только публичная часть', 'Тек ашық бөлім')}</option>
@@ -52,7 +52,9 @@ export function AuthenticationOptions({
                 value={mode}
                 onChange={(e) => setMode(e.target.value as 'login' | 'register')}
               >
-                <option value="login">{t('Войти в аккаунт', 'Тіркелгіге кіру')}</option>
+                {profile.id !== 'automatic' && (
+                  <option value="login">{t('Войти в аккаунт', 'Тіркелгіге кіру')}</option>
+                )}
                 {profile.registration && (
                   <option value="register">
                     {t('Создать аккаунт и войти', 'Тіркелгі жасап кіру')}
@@ -67,6 +69,19 @@ export function AuthenticationOptions({
           {t(
             'Профиль доступа ещё не подключён. Пока проверяется публичная часть сайта.',
             'Кіру профилі қосылмаған. Әзірге сайттың ашық бөлімі тексеріледі.',
+          )}
+        </p>
+      )}
+      {profile?.id === 'automatic' && (
+        <p>
+          {t('Временная почта: ', 'Уақытша пошта: ')}
+          <a href="https://mail.tm" target="_blank" rel="noreferrer">
+            Mail.tm
+          </a>
+          .{' '}
+          {t(
+            'Телефон, CAPTCHA или документы могут потребовать вашего участия.',
+            'Телефон, CAPTCHA немесе құжаттар сіздің қатысуыңызды қажет етуі мүмкін.',
           )}
         </p>
       )}

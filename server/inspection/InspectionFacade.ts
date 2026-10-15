@@ -39,12 +39,16 @@ export class InspectionFacade {
     input: InspectionInput,
     onStage: ProgressObserver = () => {},
     onStart: (stage: { id: string; name: Localized }) => void | Promise<void> = () => {},
+    parentSignal?: AbortSignal,
   ): Promise<InspectionResult> {
     const strategy = this.strategies.create(input.analysisLevel);
     // Resolve all configuration up front: unknown plugins are deployment errors, not partial success.
     const checks = strategy.checks.map((id) => this.registry.create(id));
     const startedAt = new Date().toISOString();
     const controller = new AbortController();
+    const cancel = () => controller.abort(Error('ANALYSIS_TIMEOUT'));
+    parentSignal?.addEventListener('abort', cancel, { once: true });
+    if (parentSignal?.aborted) cancel();
     const timer = setTimeout(
       () => controller.abort(new Error('ANALYSIS_TIMEOUT')),
       strategy.timeoutMs,
@@ -198,6 +202,7 @@ export class InspectionFacade {
       }
     } finally {
       clearTimeout(timer);
+      parentSignal?.removeEventListener('abort', cancel);
     }
     if (!hasText)
       issues.push({

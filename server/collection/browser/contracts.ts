@@ -1,6 +1,12 @@
-import type { BrowserContext } from 'playwright';
+import type { AgentAction } from '../../../shared/agent-run';
+import type { BrowserContext, Page } from 'playwright';
 export interface BrowserSession {
   context: BrowserContext;
+  observe?: (
+    page: Page,
+    instruction: string,
+    onAction?: (action: AgentAction) => void,
+  ) => Promise<{ selector: string; description: string }[]>;
   close(): Promise<void>;
 }
 export type BrowserSessionFactory = (

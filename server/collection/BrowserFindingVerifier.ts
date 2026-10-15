@@ -24,10 +24,10 @@ export class BrowserFindingVerifier {
       page: Page,
     ) => Promise<boolean> = async () => false,
   ) {}
-  async verify(record: CaseRecord) {
+  async verify(record: CaseRecord, parent?: AbortSignal) {
     if (record.sourceType !== 'url' || !record.findings.length) return;
     let session: BrowserSession;
-    const signal = AbortSignal.timeout(120000);
+    const signal = AbortSignal.any([AbortSignal.timeout(120000), ...(parent ? [parent] : [])]);
     try {
       session = await this.open(record, signal, { width: 1440, height: 1000 });
     } catch {
@@ -53,6 +53,7 @@ export class BrowserFindingVerifier {
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await waitForPageContent(page);
           for (const finding of findings) {
+            if (finding.visualEvidence?.status === 'verified') continue;
             signal.throwIfAborted();
             if (
               record.evidence.find((e) => e.id === finding.evidenceId)?.access ===

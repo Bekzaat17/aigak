@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { PublicEgressProxy } from './PublicEgressProxy';
 import { browserOptions } from '../browser-options';
-import { parsePublicUrl } from '../../network';
+import { installNativeNetworkPolicy } from './native-network-policy';
 import type { BrowserSessionFactory } from './contracts';
 
 export const openNativeSession: BrowserSessionFactory = async (signal, viewport) => {
@@ -22,23 +22,7 @@ export const openNativeSession: BrowserSessionFactory = async (signal, viewport)
       serviceWorkers: 'block',
       acceptDownloads: false,
     });
-    let requests = 0;
-    await context.routeWebSocket('**/*', (ws) => ws.close());
-    await context.route('**/*', async (route) => {
-      try {
-        const url = parsePublicUrl(route.request().url());
-        if (
-          signal.aborted ||
-          ++requests > 800 ||
-          route.request().method() !== 'GET' ||
-          url.protocol !== 'https:'
-        )
-          return await route.abort();
-        await route.continue();
-      } catch {
-        await route.abort().catch(() => {});
-      }
-    });
+    await installNativeNetworkPolicy(context, signal);
     let closed = false;
     const close = async () => {
       if (closed) return;

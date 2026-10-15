@@ -1,3 +1,4 @@
+import { AuthChallengePanel } from '../features/case-workspace/AuthChallengePanel';
 import { CollectionQuality } from '../features/case-workspace/CollectionQuality';
 import { AnalysisProgress } from '../AnalysisProgress';
 import { FindingsWorkspace } from '../features/case-workspace/FindingsWorkspace.tsx';
@@ -40,6 +41,12 @@ export function CaseScreen({
         processing={processing}
         reset={reset}
         exportZip={exportZip}
+      />
+      <AuthChallengePanel
+        key={current.id}
+        id={current.id}
+        active={!!processing && !!current.authenticationRequest}
+        lang={lang}
       />
       {processing ? (
         <AnalysisProgress c={current} lang={lang} />

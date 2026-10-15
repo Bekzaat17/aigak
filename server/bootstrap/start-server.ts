@@ -1,3 +1,4 @@
+import { FileAuthChallenges } from '../auth/FileAuthChallenges';
 import { parseAuthProfiles, publicAuthProfiles } from '../auth/auth-profiles';
 import { StandardReportLayout } from '../package/adapters/StandardReportLayout.ts';
 import express from 'express';
@@ -33,6 +34,13 @@ export async function startServer() {
     if (storage.jobs)
       await new InterruptedIntakeRecovery(store).recover(await storage.jobs.interruptedIntakes());
     const authProfiles = publicAuthProfiles(parseAuthProfiles(process.env.AIGAK_AUTH_PROFILES));
+    if (process.env.OPENAI_API_KEY)
+      authProfiles.unshift({
+        id: 'automatic',
+        name: 'Агент · регистрация с временной почтой',
+        origin: '*',
+        registration: true,
+      });
     const aiAnalyzer = createAiAnalyzer();
     const queue = storage.jobs
       ? storage.jobs
@@ -50,6 +58,7 @@ export async function startServer() {
         queue,
         aiAnalyzer,
         authProfiles: { list: () => authProfiles },
+        authChallenges: new FileAuthChallenges(dataDirectory),
         templates,
         documents,
         upload: multer({

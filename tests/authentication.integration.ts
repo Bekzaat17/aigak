@@ -155,3 +155,98 @@ test('private finding never receives a proof screenshot after session expiration
     await browser.close();
   }
 });
+
+test('automatic registration discovers the form, provisions email and confirms the private page', async () => {
+  const { AutomaticRegistrationProfile } =
+    await import('../server/auth/AutomaticRegistrationProfile');
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' });
+  try {
+    const page = await browser.newPage();
+    let submissions = 0,
+      created = 0;
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      if (request.method() === 'POST') {
+        submissions++;
+        const data = new URLSearchParams(request.postData() || '');
+        assert.equal(data.get('email'), 'fixture@inbox.example');
+        assert.equal(data.get('password'), 'fixture-password');
+        return route.fulfill({ status: 302, headers: { location: '/account' } });
+      }
+      if (new URL(request.url()).pathname === '/register')
+        return route.fulfill({
+          contentType: 'text/html',
+          body: '<form method="post"><label>Email<input type="email" name="email" required></label><label>Password<input type="password" name="password" required></label><button type="submit">Register</button></form>',
+        });
+      return route.fulfill({
+        contentType: 'text/html',
+        body: '<div data-authenticated="true">Authenticated account</div><p>Private rules</p>',
+      });
+    });
+    const provider = new AutomaticRegistrationProfile({
+      create: async () => {
+        created++;
+        return { address: 'fixture@inbox.example', password: 'fixture-password' };
+      },
+    });
+    const signal = AbortSignal.timeout(30000);
+    const automatic = await provider.prepare(
+      'test',
+      'https://account.example.com/register',
+      page,
+      undefined,
+      signal,
+      () => {},
+    );
+    const agent = new BrowserAuthenticationAgent({ waitForLink: async () => undefined });
+    assert.equal(await agent.authenticate(page, automatic, 'register', signal), true);
+    assert.equal(created, 1);
+    assert.equal(submissions, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('an inspector OTP continues the same authenticated browser session', async () => {
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' });
+  try {
+    const page = await browser.newPage();
+    let submissions = 0,
+      requests = 0;
+    await page.route('**/*', async (route) => {
+      if (route.request().method() === 'POST') {
+        submissions++;
+        if (submissions === 1)
+          return route.fulfill({
+            contentType: 'text/html',
+            body: '<form method="post"><input autocomplete="one-time-code" name="otp"><button type="submit">Confirm</button></form>',
+          });
+        assert.equal(new URLSearchParams(route.request().postData() || '').get('otp'), '123456');
+        return route.fulfill({
+          contentType: 'text/html',
+          body: '<div data-authenticated="true">Private account</div>',
+        });
+      }
+      return route.fulfill({
+        contentType: 'text/html',
+        body: '<form method="post"><input id="email" name="email"><input id="password" name="password" type="password"><button id="submit" type="submit">Log in</button></form>',
+      });
+    });
+    const agent = new BrowserAuthenticationAgent({ waitForLink: async () => undefined });
+    const secrets: string[] = [];
+    const success = await agent.authenticate(page, profile, 'login', AbortSignal.timeout(30000), {
+      requestCode: async () => {
+        requests++;
+        return '123456';
+      },
+      onSecret: (s) => secrets.push(s),
+    });
+    assert.equal(success, true);
+    assert.equal(requests, 1);
+    assert.equal(submissions, 2);
+    assert.ok(secrets.includes('123456'));
+    assert.ok(!(await sanitizedDom(page)).includes('123456'));
+  } finally {
+    await browser.close();
+  }
+});
