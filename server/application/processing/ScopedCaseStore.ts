@@ -22,12 +22,12 @@ export class ScopedCaseStore implements CaseStore, StageScope {
     const scope = this.scopes.get(record);
     scope?.signal.throwIfAborted();
     const target = scope?.original || record;
-    if (scope) Object.assign(target, structuredClone(record));
+    if (scope) Object.assign(target, record);
     const pending = action(target);
     scope?.pending.add(pending);
     try {
       const result = await pending;
-      if (scope) Object.assign(record, structuredClone(target));
+      if (scope) Object.assign(record, target);
       return result;
     } finally {
       scope?.pending.delete(pending);

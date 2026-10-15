@@ -51,6 +51,7 @@ export class BrowserFindingVerifier {
         const page = await context.newPage();
         try {
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+          await session.preparePage?.(page, (action) => record.scenarioRun?.actions.push(action));
           await waitForPageContent(page);
           for (const finding of findings) {
             if (finding.visualEvidence?.status === 'verified') continue;

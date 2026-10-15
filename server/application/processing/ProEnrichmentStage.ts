@@ -9,7 +9,6 @@ export class ProEnrichmentStage implements ProcessingStage {
   constructor(
     private readonly store: Pick<CaseStore, 'addEvidence' | 'event' | 'read'>,
     private readonly official: { enrich(report: OsintReport, save: SaveArtifact): Promise<void> },
-    private readonly legal: { enrich(report: OsintReport, save: SaveArtifact): Promise<void> },
     private readonly detective: {
       investigate(report: OsintReport, evidence: Evidence[], save: SaveArtifact): Promise<void>;
     },
@@ -26,17 +25,6 @@ export class ProEnrichmentStage implements ProcessingStage {
       };
       await this.store.event(c, 'official.started');
       await this.official.enrich(
-        c.osint,
-        async (a, collector) =>
-          await this.store.addEvidence(c, a.bytes, {
-            name: a.name,
-            mime: a.mime,
-            kind: 'metadata',
-            method: collector,
-            sourceUrl: a.sourceUrl,
-          }),
-      );
-      await this.legal.enrich(
         c.osint,
         async (a, collector) =>
           await this.store.addEvidence(c, a.bytes, {

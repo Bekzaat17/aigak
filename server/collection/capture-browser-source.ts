@@ -21,6 +21,13 @@ export async function captureBrowserSource(
     const page = await context.newPage();
     page.setDefaultTimeout(12000);
     await page.goto(c.sourceUrl!, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    try {
+      await session.preparePage?.(page, (action) => c.scenarioRun?.actions.push(action));
+    } catch (error) {
+      signal.throwIfAborted();
+      await capturePageEvidence(page, store, c, extraction, viewport, prefix);
+      throw error;
+    }
     await waitForPageContent(page);
     signal.throwIfAborted();
     await capturePageEvidence(page, store, c, extraction, viewport, prefix);

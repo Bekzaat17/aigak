@@ -2,6 +2,7 @@ import type { AgentAction } from '../../../shared/agent-run';
 import type { BrowserContext, Page } from 'playwright';
 export interface BrowserSession {
   context: BrowserContext;
+  preparePage?: (page: Page, onAction?: (action: AgentAction) => void) => Promise<void>;
   observe?: (
     page: Page,
     instruction: string,

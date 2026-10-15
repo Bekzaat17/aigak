@@ -19,6 +19,7 @@ export class AgentBrowserCollectionMethod implements UrlCollectionMethod {
     try {
       const page = await session.context.newPage();
       await page.goto(c.sourceUrl!, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      await session.preparePage?.(page, (action) => c.scenarioRun?.actions.push(action));
       await page.waitForTimeout(1500);
       await capturePageEvidence(page, this.store, c, this.extraction, viewport, this.id);
       if (!session.observe) return;
@@ -50,6 +51,7 @@ export class AgentBrowserCollectionMethod implements UrlCollectionMethod {
         signal.throwIfAborted();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
         if (parsePublicUrl(page.url()).origin !== origin) continue;
+        await session.preparePage?.(page, (action) => c.scenarioRun?.actions.push(action));
         await capturePageEvidence(page, this.store, c, this.extraction, viewport, this.id);
       }
     } finally {

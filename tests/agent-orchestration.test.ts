@@ -269,3 +269,28 @@ test('scoped writes preserve repository object identity across stages and final 
     f.cleanup();
   }
 });
+
+test('scoped evidence writes preserve references held by a running verifier', async () => {
+  const f = await fixture();
+  try {
+    const original = (await f.store.get(f.record.id))!;
+    const working = structuredClone(original);
+    const scoped = new ScopedCaseStore(f.store);
+    scoped.begin(working, new AbortController().signal, original);
+    working.issues.push({ ru: 'До проверки', kk: 'Тексеруге дейін' });
+    const held = working.issues[0];
+    await scoped.addEvidence(working, Buffer.from('verified'), {
+      name: 'proof.txt',
+      kind: 'text',
+      mime: 'text/plain',
+      method: 'fixture',
+    });
+    held.ru = 'После проверки';
+    assert.equal(working.issues[0], held);
+    assert.equal(working.issues[0].ru, 'После проверки');
+    await scoped.event(working, 'verified');
+    assert.equal((await f.store.get(f.record.id))?.issues[0].ru, 'После проверки');
+  } finally {
+    f.cleanup();
+  }
+});

@@ -2,11 +2,14 @@ import type { BrowserSessionFactory } from './contracts';
 import { openNativeSession } from './open-native-session';
 import { StagehandControlObserver } from './StagehandControlObserver';
 export class StagehandBrowserFactory {
-  constructor(private readonly config: { apiKey: string; model: string; executablePath: string }) {}
+  constructor(
+    private readonly config: { apiKey: string; model: string; executablePath: string },
+    private readonly openSession: BrowserSessionFactory = openNativeSession,
+  ) {}
   readonly open: BrowserSessionFactory = async (signal, viewport) => {
     const controller = new AbortController();
     const active = AbortSignal.any([signal, controller.signal]);
-    const session = await openNativeSession(active, viewport);
+    const session = await this.openSession(active, viewport);
     const observer = new StagehandControlObserver(this.config, active);
     return {
       ...session,

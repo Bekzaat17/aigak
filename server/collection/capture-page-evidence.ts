@@ -49,9 +49,10 @@ export async function capturePageEvidence(
           capturedAt: new Date().toISOString(),
           viewport,
           transport: prefix,
-          locale: 'ru-RU',
+          locale: await page.evaluate(() => navigator.language),
           quality: pageTextQuality(text),
-          networkPolicy: 'Public GET only; pinned DNS; bounded requests and bytes',
+          networkPolicy:
+            'Public HTTPS; pinned DNS; bounded requests and bytes; explicit verification and public-page POST rules',
         },
         null,
         2,

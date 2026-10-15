@@ -33,7 +33,7 @@ export const legalOutputSchema = {
     assessment: bilingual,
     hypotheses: {
       type: 'array',
-      maxItems: 2,
+      maxItems: 6,
       items: {
         type: 'object',
         properties: {

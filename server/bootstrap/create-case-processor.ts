@@ -1,3 +1,5 @@
+import { LegalCorpusStage } from '../application/processing/LegalCorpusStage';
+import { openPatchrightSession } from '../collection/browser/open-patchright-session';
 import { AuthenticationStage } from '../application/processing/AuthenticationStage';
 import { FileAuthChallenges } from '../auth/FileAuthChallenges';
 import { EvidenceSupervisor } from '../application/processing/EvidenceSupervisor';
@@ -44,15 +46,18 @@ export function createCaseProcessor(
   const store = new ScopedCaseStore(durableStore);
   const extraction = createExtraction(store, dataDirectory);
   const agentBrowser = process.env.OPENAI_API_KEY
-    ? new StagehandBrowserFactory({
-        apiKey: process.env.OPENAI_API_KEY,
-        model: process.env.BROWSER_AGENT_MODEL || process.env.OPENAI_MODEL || 'gpt-6-luna',
-        executablePath:
-          process.env.STAGEHAND_CHROME_PATH ||
-          (process.platform === 'darwin'
-            ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-            : chromium.executablePath()),
-      }).open
+    ? new StagehandBrowserFactory(
+        {
+          apiKey: process.env.OPENAI_API_KEY,
+          model: process.env.BROWSER_AGENT_MODEL || process.env.OPENAI_MODEL || 'gpt-6-luna',
+          executablePath:
+            process.env.STAGEHAND_CHROME_PATH ||
+            (process.platform === 'darwin'
+              ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+              : chromium.executablePath()),
+        },
+        openPatchrightSession,
+      ).open
     : undefined;
   const proCollector = createProCollector(store, dataDirectory, agentBrowser);
   const sessions = new CaseBrowserSessions();
@@ -88,10 +93,10 @@ export function createCaseProcessor(
         (c) => collectContactPages(store, c, extraction),
         createOsintFacade(),
       ),
+      new LegalCorpusStage(store, new LegalCorpusService()),
       new ProEnrichmentStage(
         store,
         new OfficialSourcesService(),
-        new LegalCorpusService(),
         new DetectiveService(),
         new ResourceInvestigator([new CertificateTransparencyProvider()]),
       ),
@@ -116,6 +121,12 @@ export function createCaseProcessor(
                       close: async () => signal.removeEventListener('abort', abort),
                     };
                   }
+                  if (
+                    record.collection?.attempts.some(
+                      (a) => a.method === 'browser-patchright' && a.status === 'adequate',
+                    )
+                  )
+                    return openPatchrightSession(signal, viewport);
                   const native = record.collection?.attempts.some(
                     (a) => a.method.startsWith('browser-native') && a.status === 'adequate',
                   );
@@ -157,10 +168,11 @@ export function createCaseProcessor(
       scope: store,
       stageBudgets: {
         'collection-v2': 130000,
-        'authentication-v1': 75000,
+        'authentication-v1': 60000,
         'resource-profile-v1': 15000,
-        'pro-enrichment-v1': 25000,
-        'inspection-v1': 100000,
+        'legal-corpus-v1': 30000,
+        'pro-enrichment-v1': 20000,
+        'inspection-v1': 90000,
         'finding-verification-v1': 50000,
       },
     },

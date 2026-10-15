@@ -38,6 +38,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "latest",
     "multer": "^2.0.2",
+    "patchright": "1.64.0",
     "pdfjs-dist": "latest",
     "pg": "^8.23.1",
     "pizzip": "^3.3.0",

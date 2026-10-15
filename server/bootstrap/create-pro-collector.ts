@@ -4,7 +4,7 @@ import { HttpCollectionMethod } from '../collection/HttpCollectionMethod';
 import { BrowserCollectionMethod } from '../collection/BrowserCollectionMethod';
 import { AgentBrowserCollectionMethod } from '../collection/AgentBrowserCollectionMethod';
 import { openNativeSession } from '../collection/browser/open-native-session';
-import { openInterceptedSession } from '../collection/browser/open-intercepted-session';
+import { openPatchrightSession } from '../collection/browser/open-patchright-session';
 import type { BrowserSessionFactory } from '../collection/browser/contracts';
 import type { CollectionStorage } from '../collection/contracts';
 import { reviewCollectionAttempt } from '../domain/review-collection-attempt';
@@ -45,7 +45,7 @@ export function createProCollector(
       {
         fallback: true,
         strategies: [
-          browser('browser-desktop', openInterceptedSession),
+          browser('browser-patchright', openPatchrightSession),
           browser('browser-mobile', openNativeSession, true),
         ],
       },
