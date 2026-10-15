@@ -15,7 +15,7 @@ export async function executeScopedStage(
   );
   const controller = new AbortController();
   const working = structuredClone(record);
-  policy.scope.begin(working, controller.signal);
+  policy.scope.begin(working, controller.signal, record);
   const start = Date.now();
   let status: 'completed' | 'failed' = 'completed';
   let reason: string | undefined;

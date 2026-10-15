@@ -210,3 +210,62 @@ test('worker recovery preserves the original scenario deadline and prior trace',
     f.cleanup();
   }
 });
+
+test('scoped writes preserve repository object identity across stages and final commit', async () => {
+  const f = await fixture();
+  try {
+    const tracked = new WeakSet<object>();
+    const durable = {
+      nextNumber: f.store.nextNumber.bind(f.store),
+      all: f.store.all.bind(f.store),
+      list: f.store.list.bind(f.store),
+      addEvidence: f.store.addEvidence.bind(f.store),
+      read: f.store.read.bind(f.store),
+      verify: f.store.verify.bind(f.store),
+      get: async (id: string) => {
+        const record = await f.store.get(id);
+        if (record) tracked.add(record);
+        return record;
+      },
+      save: async (record: typeof f.record) => {
+        assert.ok(tracked.has(record), 'repository concurrency token belongs to original object');
+        await f.store.save(record);
+      },
+      event: async (record: typeof f.record, action: string, detail?: string) => {
+        assert.ok(tracked.has(record), 'audit writes retain repository identity');
+        await f.store.event(record, action, detail);
+      },
+    };
+    const scoped = new ScopedCaseStore(durable);
+    const processor = new CaseProcessingService(
+      scoped,
+      [
+        {
+          id: 'first',
+          execute: async (record) => {
+            record.title = 'First stage';
+            await scoped.save(record);
+          },
+        },
+        {
+          id: 'second',
+          execute: async (record) => {
+            assert.equal(record.title, 'First stage');
+            record.title = 'Second stage';
+            await scoped.event(record, 'fixture');
+          },
+        },
+      ],
+      undefined,
+      undefined,
+      { budgetMs: 1000, stageBudgets: {}, scope: scoped },
+    );
+    await processor.run(f.record.id);
+    const saved = await f.store.get(f.record.id);
+    assert.equal(saved?.status, 'review');
+    assert.equal(saved?.title, 'Second stage');
+    assert.equal(saved?.scenarioRun?.actions.length, 2);
+  } finally {
+    f.cleanup();
+  }
+});

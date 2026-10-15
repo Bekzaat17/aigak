@@ -1,6 +1,6 @@
 import type { CaseRecord } from '../../../shared/types';
 export interface StageScope {
-  begin(record: CaseRecord, signal: AbortSignal): void;
+  begin(record: CaseRecord, signal: AbortSignal, original: CaseRecord): void;
   drain(record: CaseRecord): Promise<void>;
 }
 export interface ProcessingExecutionPolicy {
