@@ -72,7 +72,9 @@ export class HttpCollectionMethod implements UrlCollectionMethod {
           .map((_, a) => {
             try {
               const u = new URL($(a).attr('href')!, result.url);
-              return ['http:', 'https:'].includes(u.protocol) ? u.href : '';
+              return ['http:', 'https:'].includes(u.protocol) && !isTechnicalResourceLink(u)
+                ? u.href
+                : '';
             } catch {
               return '';
             }
@@ -83,3 +85,4 @@ export class HttpCollectionMethod implements UrlCollectionMethod {
     ].slice(0, 30);
   }
 }
+import { isTechnicalResourceLink } from '../../shared/resource-link';

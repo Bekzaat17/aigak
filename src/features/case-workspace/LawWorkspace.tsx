@@ -82,7 +82,11 @@ export function LawWorkspace({
                 <>
                   <a
                     className="text-button"
-                    href={norm.sourceUrl + '/history'}
+                    href={
+                      /\/docs\/[0-9a-f-]{36}$/.test(norm.sourceUrl)
+                        ? norm.sourceUrl + '?tab=history'
+                        : norm.sourceUrl + '/history'
+                    }
                     target="_blank"
                     rel="noreferrer"
                   >

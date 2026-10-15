@@ -1,5 +1,4 @@
 import { materialLabel } from './material-label';
-import { currentEvidence } from '../../../shared/current-evidence';
 import { FileText, Image } from 'lucide-react';
 import { useState } from 'react';
 import type { CaseRecord, Evidence, Lang } from '../../../shared/types';
@@ -10,13 +9,10 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
   const [kind, setKind] = useState('main');
   const [selected, setSelected] = useState('');
-  const list = (kind === 'all' ? c.evidence : currentEvidence(c)).filter(
-    (e) =>
-      kind === 'all' ||
-      (kind === 'images'
-        ? e.mime.startsWith('image/')
-        : primaryMaterials(c).some((source) => source.id === e.id)),
-  );
+  const list =
+    kind === 'all'
+      ? c.evidence
+      : primaryMaterials(c).filter((e) => kind !== 'images' || e.mime.startsWith('image/'));
   const purpose = (e: Evidence) => {
     const matches = materialFindings(c, e);
     return matches.length
@@ -38,21 +34,19 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
     <section>
       <div className="workspace-heading">
         <div>
-          <h2>{t('Сохранённые материалы', 'Сақталған материалдар')}</h2>
+          <h2>{t('Доказательная база', 'Дәлелдемелер базасы')}</h2>
           <p>
             {t(
-              'Скриншоты и оригиналы — здесь. Технические файлы доступны в «Архив и технические файлы».',
-              'Скриншоттар мен түпнұсқалар осында. Техникалық файлдар «Барлық файлдар» бөлімінде.',
+              'Здесь — подтверждённые снимки находок и тексты с точными цитатами. Наличие признака не означает доказанного правонарушения. Попытки доступа и страницы защиты сохранены только в архиве.',
+              'Мұнда белгілердің тексерілген суреттері мен дәл дәйексөздері бар мәтіндер көрсетілген. Белгі құқық бұзушылықты дәлелдемейді. Қорғаныс беттері тек мұрағатта сақталған.',
             )}
           </p>
         </div>
         <label>
           {t('Показать', 'Көрсету')}
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="main">
-              {t('Доказательства и контекст', 'Түпнұсқалар мен суреттер')}
-            </option>
-            <option value="images">{t('Только изображения', 'Тек кескіндер')}</option>
+            <option value="main">{t('Доказательства находок', 'Белгілердің дәлелдемелері')}</option>
+            <option value="images">{t('Подтверждённые снимки', 'Тексерілген суреттер')}</option>
             <option value="all">{t('Архив и технические файлы', 'Барлық файлдар')}</option>
           </select>
         </label>
@@ -84,7 +78,7 @@ export function MaterialsWorkspace({ c, lang }: { c: CaseRecord; lang: Lang }) {
       ) : (
         <div className="empty-result">
           {t(
-            'В этой группе файлов нет. Выберите «Архив и технические файлы».',
+            'Подтверждённых материалов в этой группе пока нет. Страницы защиты и неподтверждённые снимки не считаются доказательствами.',
             'Бұл топта файлдар жоқ. «Барлық файлдар» таңдаңыз.',
           )}
         </div>

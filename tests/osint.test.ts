@@ -317,5 +317,5 @@ test('official source outages retain previous observations and never report abse
   });
   assert.equal(report.observations.length, 1);
   assert.equal(report.registry, undefined);
-  assert.equal(report.stages.filter((s) => s.status === 'failed').length, 2);
+  assert.equal(report.stages.filter((s) => s.status === 'failed').length, 1);
 });

@@ -70,16 +70,20 @@ export function contentVerdict(
 
 export function primaryMaterials(c: CaseRecord) {
   return currentEvidence(c).filter((e) => {
-    if (materialFindings(c, e).length) return true;
-    if (
-      e.method.startsWith('detective-') ||
-      e.method.startsWith('official-') ||
-      e.kind === 'metadata' ||
-      e.method === 'finding-verification-dom'
-    )
-      return false;
-    if (e.method === 'finding-screenshot') return false;
-    return e.mime.startsWith('image/') || (e.kind === 'text' && !!e.text?.trim());
+    if (e.mime.startsWith('image/'))
+      return c.findings.some(
+        (f) =>
+          f.decision !== 'rejected' &&
+          f.visualEvidence?.status === 'verified' &&
+          verifiedFindingScreenshot(f, c.evidence)?.id === e.id,
+      );
+    return c.findings.some(
+      (f) =>
+        f.decision !== 'rejected' &&
+        f.evidenceId === e.id &&
+        !!f.quote.trim() &&
+        !!e.text?.includes(f.quote),
+    );
   });
 }
 export function materialFindings(c: CaseRecord, e: Evidence) {

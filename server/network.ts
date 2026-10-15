@@ -24,6 +24,22 @@ export async function safeFetch(
   signal?: AbortSignal,
   requestHeaders: Readonly<Record<string, string>> = {},
 ): Promise<CaptureResponse> {
+  return safeRequest(value, maxBytes, hops, signal, requestHeaders);
+}
+
+/** JSON POST for public read-only query endpoints, using the same DNS and size guards. */
+export async function safePostJson(value: string, body: unknown, signal?: AbortSignal) {
+  return safeRequest(value, 12 * 1024 * 1024, 0, signal, {}, Buffer.from(JSON.stringify(body)));
+}
+
+async function safeRequest(
+  value: string,
+  maxBytes: number,
+  hops: number,
+  signal?: AbortSignal,
+  requestHeaders: Readonly<Record<string, string>> = {},
+  body?: Buffer,
+): Promise<CaptureResponse> {
   let current = value;
   const redirects: CaptureResponse['redirects'] = [];
   for (let i = 0; i <= hops; i++) {
@@ -39,13 +55,16 @@ export async function safeFetch(
       const req = (u.protocol === 'https:' ? https : http).request(
         u,
         {
-          method: 'GET',
+          method: body ? 'POST' : 'GET',
           agent: false,
           signal,
           headers: {
             'User-Agent': 'aigak/0.1 (public evidence collection)',
             'Accept-Encoding': 'identity',
             Accept: '*/*',
+            ...(body
+              ? { 'Content-Type': 'application/json', 'Content-Length': String(body.length) }
+              : {}),
             ...Object.fromEntries(
               Object.entries(requestHeaders).filter(
                 ([key, value]) =>
@@ -96,7 +115,7 @@ export async function safeFetch(
       const timer = setTimeout(() => req.destroy(new Error('FETCH_TIMEOUT')), 12000);
       req.on('close', () => clearTimeout(timer));
       req.on('error', reject);
-      req.end();
+      req.end(body);
     });
     redirects.push({ url: u.href, status: result.status });
     if ([301, 302, 303, 307, 308].includes(result.status) && result.headers.location) {

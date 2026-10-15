@@ -201,3 +201,56 @@ test('access signals use current collected responses and preserve the exact chal
   assert.ok(html.includes('/api/cases/case/evidence/challenge'));
   assert.ok(!html.includes('Access denied'));
 });
+
+test('challenge vendor links never appear as relationships, including historical cases', () => {
+  const c = fixture();
+  c.links = [
+    'https://www.cloudflare.com/?utm_source=challenge',
+    'https://www.cloudflare.com/privacypolicy/',
+    'https://hcaptcha.com/privacy',
+    'https://example.net/cdn-cgi/challenge-platform/',
+    'https://t.me/operator',
+  ];
+  assert.deepEqual(
+    publishedResources(c).map((r) => r.url),
+    ['https://t.me/operator'],
+  );
+});
+
+test('proof materials exclude arbitrary images and challenge pages but retain exact verified crop', () => {
+  const c = fixture();
+  c.evidence = [
+    { id: 'challenge', method: 'playwright-screenshot', mime: 'image/png' },
+    {
+      id: 'text',
+      method: 'playwright-innerText',
+      mime: 'text/plain',
+      kind: 'text',
+      text: 'Главный приз 1000000',
+    },
+    { id: 'random', method: 'playwright-screenshot', mime: 'image/png', parentId: 'text' },
+    {
+      id: 'proof',
+      method: 'finding-screenshot',
+      mime: 'image/png',
+      capture: { textEvidenceId: 'text', visibleText: 'Главный приз', quality: 'adequate' },
+    },
+  ] as Evidence[];
+  c.findings = [
+    {
+      id: 'f',
+      evidenceId: 'text',
+      quote: 'Главный приз',
+      visualEvidence: { status: 'verified', screenshotId: 'proof' },
+    },
+  ] as CaseRecord['findings'];
+  assert.deepEqual(
+    primaryMaterials(c).map((e) => e.id),
+    ['text', 'proof'],
+  );
+  c.findings[0].visualEvidence = { status: 'unavailable', reason: 'PAGE_UNAVAILABLE' };
+  assert.deepEqual(
+    primaryMaterials(c).map((e) => e.id),
+    ['text'],
+  );
+});

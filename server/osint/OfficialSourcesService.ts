@@ -104,83 +104,66 @@ export function parseLaw(html: string) {
     };
   });
 }
-/** External sources are collected before reasoning; errors preserve the existing case. */
+/** Registry evidence only. Legal texts are owned exclusively by LegalCorpusService. */
 export class OfficialSourcesService {
   constructor(private readonly fetcher: typeof safeFetch = safeFetch) {}
   async enrich(report: OsintReport, save: SaveArtifact) {
-    for (const kind of ['registry', 'law'] as const) {
-      const started = Date.now();
-      const ids: string[] = [];
-      try {
-        const url = kind === 'registry' ? REGISTRY_URL : LAW_URL;
-        const response = await this.fetcher(url, 6 * 1024 * 1024, 3, AbortSignal.timeout(16000));
-        if (response.status !== 200) throw new Error('OFFICIAL_SOURCE_UNAVAILABLE');
-        const raw = await save(
-          {
-            name: kind === 'registry' ? 'bookmakers-2026-05-05.xlsx' : 'law-Z070000219.html',
-            mime:
-              kind === 'registry'
-                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                : 'text/html',
-            bytes: response.body,
-            sourceUrl: response.url,
-          },
-          'official-' + kind + '@1.0.0',
-        );
-        ids.push(raw.id);
-        if (kind === 'registry') {
-          const matches = registryMatches(parseRegistry(response.body), report);
-          report.registry = { sourceDate: '2026-05-05', evidenceId: raw.id, matches };
-          for (const match of matches)
-            report.observations.push({
-              id: randomUUID(),
-              kind: 'registry_match',
-              value: JSON.stringify(match),
-              evidenceId: raw.id,
-              sourceUrl: raw.sourceUrl,
-              collectedAt: raw.createdAt,
-              collector: 'official-registry@1.0.0',
-              status: 'observed',
-            });
-        } else {
-          report.legalNorms = parseLaw(response.body.toString()).map((n) => ({
-            ...n,
-            evidenceId: raw.id,
-            sourceUrl: response.url,
-            retrievedAt: raw.createdAt,
-            temporalStatus: 'requires_review' as const,
-          }));
-        }
-        report.stages.push({
-          id: kind,
-          version: '1.0.0',
-          status: 'partial',
-          durationMs: Date.now() - started,
-          evidenceIds: ids,
-          summary:
-            kind === 'registry'
-              ? {
-                  ru: `Реестр букмекеров на 05.05.2026: совпадений ${report.registry!.matches.length}. Это исторический снимок; отсутствие строки не означает отсутствие лицензии, БИН на сайте не доказывает принадлежность.`,
-                  kk: `05.05.2026 күнгі букмекерлер тізілімі: сәйкестіктер ${report.registry!.matches.length}. Бұл тарихи көшірме; жолдың болмауы лицензияның жоқтығын білдірмейді, сайттағы БСН тиесілілікті дәлелдемейді.`,
-                }
-              : {
-                  ru: 'Сохранены статьи 1, 6, 9 закона РК «Об игорном бизнесе». Применимость редакции на дату события требует проверки инспектором; корпус не охватывает всё законодательство.',
-                  kk: '«Ойын бизнесі туралы» ҚР заңының 1, 6, 9-баптары сақталды. Оқиға күніндегі редакцияның қолданылуын инспектор тексеруі тиіс; корпус барлық заңнаманы қамтымайды.',
-                },
+    const started = Date.now();
+    const ids: string[] = [];
+    try {
+      const response = await this.fetcher(
+        REGISTRY_URL,
+        6 * 1024 * 1024,
+        3,
+        AbortSignal.timeout(16000),
+      );
+      if (response.status !== 200) throw new Error('OFFICIAL_SOURCE_UNAVAILABLE');
+      const raw = await save(
+        {
+          name: 'bookmakers-2026-05-05.xlsx',
+          mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          bytes: response.body,
+          sourceUrl: response.url,
+        },
+        'official-registry@1.0.0',
+      );
+      ids.push(raw.id);
+      const matches = registryMatches(parseRegistry(response.body), report);
+      report.registry = { sourceDate: '2026-05-05', evidenceId: raw.id, matches };
+      for (const match of matches)
+        report.observations.push({
+          id: randomUUID(),
+          kind: 'registry_match',
+          value: JSON.stringify(match),
+          evidenceId: raw.id,
+          sourceUrl: raw.sourceUrl,
+          collectedAt: raw.createdAt,
+          collector: 'official-registry@1.0.0',
+          status: 'observed',
         });
-      } catch {
-        report.stages.push({
-          id: kind,
-          version: '1.0.0',
-          status: 'failed',
-          durationMs: Date.now() - started,
-          evidenceIds: ids,
-          summary: {
-            ru: 'Официальный источник недоступен или его формат изменился. Заключение не сформировано.',
-            kk: 'Ресми дереккөз қолжетімсіз немесе пішімі өзгерді. Қорытынды жасалмады.',
-          },
-        });
-      }
+      report.stages.push({
+        id: 'registry',
+        version: '1.0.0',
+        status: 'partial',
+        durationMs: Date.now() - started,
+        evidenceIds: ids,
+        summary: {
+          ru: `Реестр букмекеров на 05.05.2026: совпадений ${matches.length}. Это исторический снимок; отсутствие строки не означает отсутствие лицензии, БИН на сайте не доказывает принадлежность.`,
+          kk: `05.05.2026 күнгі букмекерлер тізілімі: сәйкестіктер ${matches.length}. Бұл тарихи көшірме; жолдың болмауы лицензияның жоқтығын білдірмейді, сайттағы БСН тиесілілікті дәлелдемейді.`,
+        },
+      });
+    } catch {
+      report.stages.push({
+        id: 'registry',
+        version: '1.0.0',
+        status: 'failed',
+        durationMs: Date.now() - started,
+        evidenceIds: ids,
+        summary: {
+          ru: 'Реестр лицензий недоступен или его формат изменился. Отсутствие лицензии не установлено.',
+          kk: 'Лицензиялар тізілімі қолжетімсіз немесе пішімі өзгерді. Лицензияның жоқтығы анықталмады.',
+        },
+      });
     }
     report.status = 'partial';
   }

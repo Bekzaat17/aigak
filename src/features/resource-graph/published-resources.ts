@@ -1,4 +1,5 @@
 import type { CaseRecord } from '../../../shared/types';
+import { isTechnicalResourceLink } from '../../../shared/resource-link';
 export interface PublishedResource {
   url: string;
   sourceUrl?: string;
@@ -13,6 +14,7 @@ export function publishedResources(c: CaseRecord): PublishedResource[] {
     try {
       const u = new URL(raw);
       if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password) return;
+      if (isTechnicalResourceLink(u)) return;
       if (
         u.hostname === new URL(c.sourceUrl!).hostname ||
         /^[\d.]+$/.test(u.hostname) ||

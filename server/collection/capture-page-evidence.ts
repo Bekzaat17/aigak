@@ -28,10 +28,12 @@ export async function capturePageEvidence(
   const links = await page
     .locator('a[href]')
     .evaluateAll((nodes) => nodes.map((n) => (n as HTMLAnchorElement).href));
-  c.links = [...new Set([...c.links, ...links.filter((url) => /^https?:\/\//.test(url))])].slice(
-    0,
-    100,
-  );
+  c.links = [
+    ...new Set([
+      ...c.links,
+      ...links.filter((url) => /^https?:\/\//.test(url) && !isTechnicalResourceLink(new URL(url))),
+    ]),
+  ].slice(0, 100);
   await saveText(store, c, dom, text, 'playwright-innerText');
   const textEvidence = c.evidence.find((e) => e.parentId === dom.id && e.kind === 'text');
   if (textEvidence) await capturePageScreenshots(page, store, c, dom, textEvidence, prefix);
@@ -68,3 +70,4 @@ export async function capturePageEvidence(
     },
   );
 }
+import { isTechnicalResourceLink } from '../../shared/resource-link';

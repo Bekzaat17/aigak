@@ -1,3 +1,5 @@
+import { AdiletApiReader } from '../osint/AdiletApiReader';
+import { AdiletHtmlReader } from '../osint/AdiletHtmlReader';
 import { LegalCorpusStage } from '../application/processing/LegalCorpusStage';
 import { openPatchrightSession } from '../collection/browser/open-patchright-session';
 import { AuthenticationStage } from '../application/processing/AuthenticationStage';
@@ -93,7 +95,10 @@ export function createCaseProcessor(
         (c) => collectContactPages(store, c, extraction),
         createOsintFacade(),
       ),
-      new LegalCorpusStage(store, new LegalCorpusService()),
+      new LegalCorpusStage(
+        store,
+        new LegalCorpusService([new AdiletApiReader(), new AdiletHtmlReader()]),
+      ),
       new ProEnrichmentStage(
         store,
         new OfficialSourcesService(),
