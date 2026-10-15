@@ -8,7 +8,11 @@ export function compactSources(evidence: Evidence[]) {
     .map((source) => {
       const text = source.text!;
       const owner = textOwners.get(text);
-      const identity = { id: source.id, sourceUrl: source.sourceUrl };
+      const identity = {
+        id: source.id,
+        sourceUrl: source.sourceUrl,
+        ...(source.access ? { access: source.access } : {}),
+      };
       // A reference costs more than a very short repeated text.
       if (owner !== undefined && text.length > owner.length + 16)
         return { ...identity, textRef: owner };

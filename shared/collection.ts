@@ -8,6 +8,7 @@ export interface CollectionAttempt {
   errorCode?: string;
 }
 export interface CollectionReport {
+  budgetMs?: number;
   status: 'adequate' | 'limited' | 'unavailable';
   attempts: CollectionAttempt[];
 }

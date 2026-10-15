@@ -1,3 +1,4 @@
+import { AuthenticationOptions } from '../features/intake/AuthenticationOptions';
 import { ArrowRight, ArrowUpRight, LockKeyhole, Loader2, Sparkles } from 'lucide-react';
 import { translator } from '../i18n/translate.ts';
 import type { IntakeScreenProps } from '../features/intake/contracts.ts';
@@ -8,6 +9,7 @@ import { AnalysisLevelSelector } from '../features/intake/AnalysisLevelSelector.
 import { IntakeTemplateSelector } from '../features/intake/IntakeTemplateSelector.tsx';
 export function IntakeScreen({
   lang,
+  authentication,
   url,
   setUrl,
   busy,
@@ -42,6 +44,17 @@ export function IntakeScreen({
           setAnalysisLevel={setAnalysisLevel}
           ai={ai}
         />
+        {analysisLevel === 'pro' && (
+          <p>
+            {t(
+              'Pro: сбор может занять до 300 секунд, затем выполняется проверка выводов и снимков. Общая длительность зависит от доступности источников.',
+              'Pro: жинау 300 секундқа дейін созылуы мүмкін, одан кейін қорытындылар мен суреттер тексеріледі. Жалпы уақыт дереккөздердің қолжетімділігіне байланысты.',
+            )}
+          </p>
+        )}
+        {analysisLevel === 'pro' && authentication && (
+          <AuthenticationOptions lang={lang} {...authentication} />
+        )}
         <div className="intake-bottom">
           <span>
             <LockKeyhole size={15} />

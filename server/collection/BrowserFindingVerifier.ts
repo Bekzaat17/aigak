@@ -1,31 +1,40 @@
-import { chromium, type Browser } from 'playwright';
+import type { BrowserSession } from './browser/contracts';
+import type { Page } from 'playwright';
+import { openInterceptedSession } from './browser/open-intercepted-session';
+import { sanitizedDom } from '../auth/sanitized-dom';
 import type { CaseRecord } from '../../shared/types.ts';
 import type { CollectionStorage } from './contracts.ts';
 import { assertGroundedFinding } from '../domain/assert-grounded-finding.ts';
-import { browserOptions } from './browser-options.ts';
-import { installBrowserNetworkPolicy } from './install-browser-network-policy.ts';
 import { waitForPageContent } from './wait-for-page-content.ts';
 import { locateVisibleQuote } from './locate-visible-quote.ts';
 import { StorageFailure } from '../application/errors/StorageFailure.ts';
 
 /** Reopens cited pages and verifies the exact quote before and after an unmodified crop. */
 export class BrowserFindingVerifier {
-  constructor(private readonly store: Pick<CollectionStorage, 'addEvidence'>) {}
+  constructor(
+    private readonly store: Pick<CollectionStorage, 'addEvidence'>,
+    private readonly open: (
+      record: CaseRecord,
+      signal: AbortSignal,
+      viewport: { width: number; height: number },
+    ) => Promise<BrowserSession> = (_record, signal, viewport) =>
+      openInterceptedSession(signal, viewport),
+    private readonly verifyPrivateAccess: (
+      record: CaseRecord,
+      page: Page,
+    ) => Promise<boolean> = async () => false,
+  ) {}
   async verify(record: CaseRecord) {
     if (record.sourceType !== 'url' || !record.findings.length) return;
-    let browser: Browser;
+    let session: BrowserSession;
+    const signal = AbortSignal.timeout(120000);
     try {
-      browser = await chromium.launch(browserOptions());
+      session = await this.open(record, signal, { width: 1440, height: 1000 });
     } catch {
       for (const finding of record.findings)
         finding.visualEvidence = { status: 'unavailable', reason: 'BROWSER_UNAVAILABLE' };
       return;
     }
-    const signal = AbortSignal.timeout(180000);
-    const abort = () => {
-      void browser.close().catch(() => {});
-    };
-    signal.addEventListener('abort', abort, { once: true });
     try {
       const urls = [
         ...new Set(
@@ -38,18 +47,21 @@ export class BrowserFindingVerifier {
         const findings = record.findings.filter(
           (f) => record.evidence.find((e) => e.id === f.evidenceId)?.sourceUrl === url,
         );
-        const context = await browser.newContext({
-          viewport: { width: 1440, height: 1000 },
-          locale: 'ru-RU',
-          serviceWorkers: 'block',
-          acceptDownloads: false,
-        });
-        await installBrowserNetworkPolicy(context, signal);
+        const context = session.context;
         const page = await context.newPage();
         try {
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await waitForPageContent(page);
           for (const finding of findings) {
+            signal.throwIfAborted();
+            if (
+              record.evidence.find((e) => e.id === finding.evidenceId)?.access ===
+                'authenticated' &&
+              !(await this.verifyPrivateAccess(record, page))
+            ) {
+              finding.visualEvidence = { status: 'unavailable', reason: 'AUTH_NOT_CONFIRMED' };
+              continue;
+            }
             assertGroundedFinding(finding, record.evidence);
             const bounds = await locateVisibleQuote(page, finding.quote);
             if (!bounds) {
@@ -70,14 +82,21 @@ export class BrowserFindingVerifier {
               finding.visualEvidence = { status: 'unavailable', reason: 'PAGE_CHANGED' };
               continue;
             }
-            const dom = await this.store.addEvidence(record, Buffer.from(await page.content()), {
-              name: `finding-${finding.id}.html`,
-              mime: 'text/html',
-              kind: 'snapshot',
-              method: 'finding-verification-dom',
-              sourceUrl: page.url(),
-              parentId: finding.evidenceId,
-            });
+            const dom = await this.store.addEvidence(
+              record,
+              Buffer.from(
+                record.authenticationRequest ? await sanitizedDom(page) : await page.content(),
+              ),
+              {
+                name: `finding-${finding.id}.html`,
+                mime: 'text/html',
+                kind: 'snapshot',
+                method: 'finding-verification-dom',
+                sourceUrl: page.url(),
+                parentId: finding.evidenceId,
+                access: record.evidence.find((e) => e.id === finding.evidenceId)?.access,
+              },
+            );
             const screenshot = await this.store.addEvidence(record, bytes, {
               name: `finding-${finding.id}.png`,
               mime: 'image/png',
@@ -85,6 +104,7 @@ export class BrowserFindingVerifier {
               method: 'finding-screenshot',
               sourceUrl: page.url(),
               parentId: dom.id,
+              access: dom.access,
               capture: {
                 textEvidenceId: finding.evidenceId,
                 visibleText: finding.quote,
@@ -109,7 +129,7 @@ export class BrowserFindingVerifier {
             if (!finding.visualEvidence)
               finding.visualEvidence = { status: 'unavailable', reason: 'PAGE_UNAVAILABLE' };
         } finally {
-          await context.close().catch(() => {});
+          await page.close().catch(() => {});
         }
       }
       for (const finding of record.findings)
@@ -119,8 +139,7 @@ export class BrowserFindingVerifier {
             reason: 'SOURCE_OR_BUDGET_UNAVAILABLE',
           };
     } finally {
-      signal.removeEventListener('abort', abort);
-      await browser.close();
+      await session.close();
     }
   }
 }

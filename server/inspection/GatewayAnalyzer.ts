@@ -44,7 +44,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
       return this.gateway.complete(
         task,
         { instructions: prompts.legal, input, schema: legalOutputSchema, schemaName: 'legal_v1' },
-        { promptVersion: 'legal/1.3.0', schemaVersion: 'legal/1.0.0' },
+        { promptVersion: 'legal/1.5.0', schemaVersion: 'legal/1.0.0' },
         options.signal,
         {
           beforeAttempt: options.beforeAttempt || (() => {}),
@@ -56,7 +56,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
       task,
       { instructions: prompts[task], input, schema: outputSchema, schemaName: 'inspection_v2' },
       {
-        promptVersion: task === 'pro_review' ? 'pro-review/1.3.0' : PROMPT_VERSION,
+        promptVersion: task === 'pro_review' ? 'pro-review/1.5.0' : PROMPT_VERSION,
         schemaVersion: SCHEMA_VERSION,
       },
       options.signal,

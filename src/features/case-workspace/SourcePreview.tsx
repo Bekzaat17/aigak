@@ -19,6 +19,14 @@ export function SourcePreview({
   const dialog = useRef<HTMLDialogElement>(null);
   return (
     <div className="source-preview">
+      {e.access === 'authenticated' && (
+        <p className="preview-label">
+          {t(
+            'Материал получен после входа в аккаунт',
+            'Материал тіркелгіге кіргеннен кейін алынды',
+          )}
+        </p>
+      )}
       {e.mime.startsWith('image/') && (
         <button
           className="preview-image"

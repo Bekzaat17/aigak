@@ -35,6 +35,7 @@ export async function startRevision(
       inspection: c.inspection,
       osint: c.osint,
       collection: c.collection,
+      authentication: c.authentication,
       assessment: c.assessment,
       likelihood: c.likelihood,
       issues: c.issues,

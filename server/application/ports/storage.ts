@@ -9,7 +9,7 @@ export interface CaseRepository {
 }
 
 export type EvidenceInput = Pick<Evidence, 'name' | 'mime' | 'kind' | 'method'> &
-  Partial<Pick<Evidence, 'parentId' | 'text' | 'sourceUrl' | 'capture'>>;
+  Partial<Pick<Evidence, 'parentId' | 'text' | 'sourceUrl' | 'capture' | 'access'>>;
 
 export interface EvidenceStorage {
   addEvidence(record: CaseRecord, bytes: Buffer, input: EvidenceInput): Promise<Evidence>;

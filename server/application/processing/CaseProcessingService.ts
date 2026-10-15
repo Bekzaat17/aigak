@@ -9,6 +9,7 @@ export class CaseProcessingService implements CaseProcessor {
     private readonly store: Pick<CaseRepository, 'get' | 'all'> & AuditWriter,
     private readonly stages: readonly ProcessingStage[],
     private readonly progress?: ProcessingProgress,
+    private readonly release?: (id: string) => Promise<void>,
   ) {
     if (new Set(stages.map((stage) => stage.id)).size !== stages.length)
       throw new Error('DUPLICATE_PROCESSING_STAGE');
@@ -74,6 +75,8 @@ export class CaseProcessingService implements CaseProcessor {
         kk: `Жинау тоқтатылды (${code}). Алынған материалдар сақталды.`,
       });
       await this.store.event(record, 'processing.failed', code);
+    } finally {
+      await this.release?.(id);
     }
   }
 }

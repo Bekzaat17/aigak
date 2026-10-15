@@ -1,8 +1,7 @@
-import { chromium } from 'playwright';
+import type { BrowserSessionFactory } from './browser/contracts';
+import { openInterceptedSession } from './browser/open-intercepted-session';
 import type { CaseRecord } from '../../shared/types.ts';
 import type { CollectionStorage, EvidenceExtractor } from './contracts.ts';
-import { browserOptions } from './browser-options.ts';
-import { installBrowserNetworkPolicy } from './install-browser-network-policy.ts';
 import { saveText } from './text-evidence.ts';
 import { waitForPageContent } from './wait-for-page-content.ts';
 import { capturePageScreenshots } from './capture-page-screenshots.ts';
@@ -15,22 +14,12 @@ export async function captureBrowserSource(
   viewport: { width: number; height: number },
   prefix: string,
   signal: AbortSignal,
+  openSession: BrowserSessionFactory = openInterceptedSession,
 ) {
-  const browser = await chromium.launch(browserOptions());
-  const abort = () => {
-    void browser.close().catch(() => {});
-  };
-  signal.addEventListener('abort', abort, { once: true });
+  const session = await openSession(signal, viewport);
   try {
     signal.throwIfAborted();
-    const context = await browser.newContext({
-      viewport,
-      locale: 'ru-RU',
-      timezoneId: 'Asia/Almaty',
-      serviceWorkers: 'block',
-      acceptDownloads: false,
-    });
-    const network = await installBrowserNetworkPolicy(context, signal);
+    const context = session.context;
     const page = await context.newPage();
     page.setDefaultTimeout(12000);
     await page.goto(c.sourceUrl!, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -71,11 +60,10 @@ export async function captureBrowserSource(
             url: page.url(),
             capturedAt: new Date().toISOString(),
             viewport,
-            browserVersion: browser.version(),
+            transport: prefix,
             locale: 'ru-RU',
             quality: pageTextQuality(text),
-            networkPolicy: 'Public GET only; pinned DNS; 600 requests / 100 MiB / 90 seconds',
-            network,
+            networkPolicy: 'Public GET only; pinned DNS; bounded requests and bytes',
           },
           null,
           2,
@@ -91,7 +79,6 @@ export async function captureBrowserSource(
       },
     );
   } finally {
-    signal.removeEventListener('abort', abort);
-    await browser.close();
+    await session.close();
   }
 }

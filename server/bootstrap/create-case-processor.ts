@@ -1,3 +1,10 @@
+import { parseAuthProfiles } from '../auth/auth-profiles';
+import { AuthenticatedCollectionMethod } from '../auth/AuthenticatedCollectionMethod';
+import { BrowserAuthenticationAgent } from '../auth/BrowserAuthenticationAgent';
+import { VerificationInboxClient } from '../auth/VerificationInboxClient';
+import { CaseBrowserSessions } from '../auth/CaseBrowserSessions';
+import { openNativeSession } from '../collection/browser/open-native-session';
+import { openInterceptedSession } from '../collection/browser/open-intercepted-session';
 import { BrowserFindingVerifier } from '../collection/BrowserFindingVerifier.ts';
 import { FindingVerificationStage } from '../application/processing/FindingVerificationStage.ts';
 import { CaseProcessingService } from '../application/processing/CaseProcessingService.ts';
@@ -26,7 +33,17 @@ export function createCaseProcessor(
   progress?: ProcessingProgress,
 ) {
   const extraction = createExtraction(store, dataDirectory);
-  const collector = createUrlCollector(store, extraction);
+  const sessions = new CaseBrowserSessions();
+  const profiles = parseAuthProfiles(process.env.AIGAK_AUTH_PROFILES);
+  const collector = createUrlCollector(store, extraction, [
+    new AuthenticatedCollectionMethod(
+      store,
+      profiles,
+      new BrowserAuthenticationAgent(new VerificationInboxClient()),
+      openNativeSession,
+      sessions,
+    ),
+  ]);
   const processor = new CaseProcessingService(
     store,
     [
@@ -48,9 +65,40 @@ export function createCaseProcessor(
         new ResourceInvestigator([new CertificateTransparencyProvider()]),
       ),
       new InspectionStage(store, createInspectionFacade(ai)),
-      new FindingVerificationStage(store, new BrowserFindingVerifier(store)),
+      new FindingVerificationStage(
+        store,
+        new BrowserFindingVerifier(
+          store,
+          async (record, signal, viewport) => {
+            const active = sessions.get(record.id);
+            if (active) {
+              const abort = () => {
+                void active.close();
+              };
+              signal.addEventListener('abort', abort, { once: true });
+              return {
+                context: active.context,
+                close: async () => signal.removeEventListener('abort', abort),
+              };
+            }
+            const native = record.collection?.attempts.some(
+              (a) => a.method.startsWith('browser-native') && a.status === 'adequate',
+            );
+            return (native ? openNativeSession : openInterceptedSession)(signal, viewport);
+          },
+          async (record, page) => {
+            const active = sessions.get(record.id);
+            return (
+              !!active &&
+              new URL(page.url()).origin === active.profile.origin &&
+              (await page.locator(active.profile.successSelector).isVisible())
+            );
+          },
+        ),
+      ),
     ],
     progress,
+    (id) => sessions.release(id),
   );
   return processor;
 }

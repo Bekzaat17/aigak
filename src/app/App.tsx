@@ -32,6 +32,7 @@ export function App() {
         {!current ? (
           <IntakeScreen
             lang={controller.lang}
+            authentication={controller.authentication}
             url={controller.url}
             setUrl={controller.setUrl}
             busy={controller.busy}

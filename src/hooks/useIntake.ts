@@ -1,3 +1,4 @@
+import { useAuthenticationOptions } from './useAuthenticationOptions';
 import React, { useState } from 'react';
 import type { AnalysisLevel, CaseRecord } from '../../shared/types';
 import { normalizeUrlInput } from '../../shared/url-input';
@@ -13,6 +14,7 @@ export function useIntake({
   selectCase: (record: CaseRecord) => void;
   refreshHistory: () => Promise<void>;
 }) {
+  const authentication = useAuthenticationOptions();
   const [url, setUrl] = useState('');
   const [analysisLevel, setAnalysisLevel] = useState<AnalysisLevel>('basic');
   const start = async (e: React.FormEvent) => {
@@ -26,11 +28,16 @@ export function useIntake({
       form.set('useAi', String(analysisLevel !== 'basic'));
       form.set('analysisLevel', analysisLevel);
       form.set('templateId', templateId);
+      if (analysisLevel === 'pro' && authentication.profileId) {
+        form.set('authProfileId', authentication.profileId);
+        form.set('authMode', authentication.mode);
+      }
       selectCase(await api<CaseRecord>('/api/cases', { method: 'POST', body: form }));
       await refreshHistory();
     });
   };
   return {
+    authentication,
     url,
     setUrl,
     analysisLevel,

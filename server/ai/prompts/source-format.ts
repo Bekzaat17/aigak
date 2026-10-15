@@ -1,2 +1,2 @@
 export const sourceFormat =
-  '\nA source with textRef has exactly the same full text as the source whose id equals textRef. Its own id and sourceUrl remain distinct; cite the relevant source id. Identical text is not independent corroboration. Keep explanations concise without omitting uncertainty or evidence.';
+  '\nA source with textRef has exactly the same full text as the source whose id equals textRef. Its own id and sourceUrl remain distinct; cite the relevant source id. Identical text is not independent corroboration. A source with access=authenticated was observed only after account login. Do not call it public advertising or general public access without separate public evidence. Keep explanations concise without omitting uncertainty or evidence.';

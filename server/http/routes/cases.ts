@@ -6,7 +6,7 @@ import { submitCase } from '../../application/intake/submitCase.ts';
 import type { HttpDependencies } from '../contracts.ts';
 import { uploadName } from '../upload-name.ts';
 export function casesRoutes(
-  dependencies: Pick<HttpDependencies, 'store' | 'queue' | 'templates' | 'upload'>,
+  dependencies: Pick<HttpDependencies, 'store' | 'queue' | 'templates' | 'upload' | 'authProfiles'>,
 ) {
   const { store, upload } = dependencies;
   const router = Router();

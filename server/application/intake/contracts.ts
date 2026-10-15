@@ -1,3 +1,4 @@
+import type { AuthProfileCatalog } from '../ports/authentication';
 import type { JobQueue } from '../ports/processing.ts';
 import type { CaseStore } from '../ports/storage.ts';
 import type { TemplateCatalog } from '../ports/templates.ts';
@@ -8,6 +9,7 @@ export interface UploadedFile {
 }
 
 export interface IntakeDependencies {
+  authProfiles?: AuthProfileCatalog;
   store: CaseStore;
   queue: JobQueue;
   templates: Pick<TemplateCatalog, 'has'>;

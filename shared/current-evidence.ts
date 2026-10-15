@@ -6,7 +6,12 @@ export function currentEvidence(c: Pick<CaseRecord, 'evidence' | 'collection'>):
   const active = new Set(c.collection.attempts.flatMap((a) => a.evidenceIds));
   const captures = new Set(
     c.evidence
-      .filter((e) => e.method === 'http-get' || e.method.startsWith('playwright'))
+      .filter(
+        (e) =>
+          e.method === 'http-get' ||
+          e.method.startsWith('playwright') ||
+          e.method.startsWith('authenticated-'),
+      )
       .map((e) => e.id),
   );
   return c.evidence.filter((e) => {

@@ -28,5 +28,14 @@ export interface EvidenceExtractor {
 export interface UrlCollectionMethod {
   readonly id: string;
   readonly fallback?: boolean;
+  readonly proOnly?: boolean;
+  supports?(record: CaseRecord): boolean;
+  readonly timeoutMs?: number;
   collect(record: CaseRecord, signal: AbortSignal): Promise<void>;
 }
+
+/** Independently evaluates artifacts; collectors cannot approve their own output. */
+export type CollectionReviewer = (
+  evidence: readonly Evidence[],
+  errorCode?: string,
+) => { status: 'adequate' | 'limited' | 'failed'; textLength: number };

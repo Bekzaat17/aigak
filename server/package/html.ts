@@ -151,7 +151,7 @@ export function reportHtml(c: PackageDocument, lang: Lang) {
             </tr>
           </thead>
           <tbody>
-            ${c.evidence.map((e, i) => `<tr id="appendix-${i + 1}"><td>${t('Приложение', 'Қосымша')} ${i + 1}<br><a href="evidence/${escape(e.storedName)}">${t('Оригинал', 'Түпнұсқа')}</a><br>${escape(e.name)}<br><code>${escape(e.id)}</code><br>${escape(e.method)}<br>${escape(e.createdAt)}</td><td><code>${e.sha256}</code><br>${e.size} bytes</td></tr>`).join('')}
+            ${c.evidence.map((e, i) => `<tr id="appendix-${i + 1}"><td>${t('Приложение', 'Қосымша')} ${i + 1}<br><a href="evidence/${escape(e.storedName)}">${t('Оригинал', 'Түпнұсқа')}</a><br>${escape(e.name)}<br><code>${escape(e.id)}</code><br>${escape(e.method)}<br>${e.access === 'authenticated' ? t('Получено после входа в аккаунт', 'Тіркелгіге кіргеннен кейін алынған') + '<br>' : ''}${escape(e.createdAt)}</td><td><code>${e.sha256}</code><br>${e.size} bytes</td></tr>`).join('')}
           </tbody>
         </table>
         ${c.evidence

@@ -1,3 +1,4 @@
+import { AuthenticationSummary } from './AuthenticationSummary';
 import { LicenseSummary } from './LicenseSummary';
 import { AccessObservations } from './AccessObservations';
 import { LegalSourceLink } from './LegalSourceLink';
@@ -128,6 +129,7 @@ export function LawWorkspace({
           </article>
         );
       })}
+      <AuthenticationSummary c={c} lang={lang} />
       <AccessObservations c={c} lang={lang} />
       {!!c.osint?.legalNorms?.length && (
         <section className="panel legal-references">

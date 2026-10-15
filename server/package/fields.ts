@@ -88,7 +88,7 @@ export function templateFields(c: PackageDocument, lang: Lang): Record<string, s
     evidence_list: c.evidence
       .map(
         (e, i) =>
-          `${i + 1}. ${e.name} (${e.size} bytes)\nID: ${e.id}\nSHA-256: ${e.sha256}\n${e.createdAt} / ${e.method}`,
+          `${i + 1}. ${e.name} (${e.size} bytes)\nID: ${e.id}\nSHA-256: ${e.sha256}\n${e.createdAt} / ${e.method}${e.access === 'authenticated' ? '\n' + t('Получено после входа в аккаунт', 'Тіркелгіге кіргеннен кейін алынған') : ''}`,
       )
       .join('\n\n'),
     limitations: [

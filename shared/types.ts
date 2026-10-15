@@ -1,3 +1,4 @@
+import type { AuthenticationRequest, AuthenticationReport } from './authentication';
 import type { CollectionReport } from './collection.ts';
 import type { OsintReport } from './osint.ts';
 export interface AiAttempt {
@@ -58,6 +59,7 @@ export type Localized = { ru: string; kk: string };
 export type Status = 'queued' | 'collecting' | 'analyzing' | 'review' | 'verified' | 'failed';
 export type Decision = 'pending' | 'accepted' | 'rejected';
 export interface Evidence {
+  access?: 'public' | 'authenticated';
   capture?: {
     textEvidenceId: string;
     visibleText: string;
@@ -137,6 +139,7 @@ export interface FollowUp {
   evidenceIds: string[];
 }
 export interface CaseRevision {
+  authentication?: AuthenticationReport;
   collection?: CollectionReport;
   sha256?: string;
   legalReview?: CaseRecord['legalReview'];
@@ -158,6 +161,9 @@ export interface CaseRevision {
   reviewedAt?: string;
 }
 export interface CaseRecord {
+  authenticationRequest?: AuthenticationRequest;
+  authentication?: AuthenticationReport;
+  registrationAttempted?: boolean;
   collection?: CollectionReport;
   refreshSources?: boolean;
   legalReview?: {

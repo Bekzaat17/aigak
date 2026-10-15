@@ -196,7 +196,7 @@ test('prompt requires concise findings and separates legal gaps from negative co
   const { common } = await import('../server/ai/prompts/common.ts');
   const { legal } = await import('../server/ai/prompts/legal.ts');
   const { PROMPT_VERSION } = await import('../server/ai/prompts/index.ts');
-  assert.equal(PROMPT_VERSION, 'advanced/1.5.0');
+  assert.equal(PROMPT_VERSION, 'advanced/1.7.0');
   assert.ok(common.includes('shortest self-contained sentence'));
   assert.ok(common.includes('unavailable legal or infrastructure sources alone'));
   assert.ok(legal.includes('document title and article explicitly'));

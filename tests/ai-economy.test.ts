@@ -74,7 +74,7 @@ test('quotes against a shared source are validated against its original text and
       assert.equal(payload.sources[1].textRef, 'a');
       assert.equal(payload.inspectorStatements, undefined);
       assert.ok(request.instructions.includes('textRef'));
-      assert.equal(versions.promptVersion, 'advanced/1.5.0');
+      assert.equal(versions.promptVersion, 'advanced/1.7.0');
       const bi = { ru: 'Новость', kk: 'Жаңалық' };
       return validate(
         JSON.stringify({

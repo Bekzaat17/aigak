@@ -10,6 +10,7 @@ export async function newCase(
     sourceUrl?: string;
     useAi: boolean;
     analysisLevel?: AnalysisLevel;
+    authenticationRequest?: CaseRecord['authenticationRequest'];
     demo?: boolean;
     templateId?: string;
   },

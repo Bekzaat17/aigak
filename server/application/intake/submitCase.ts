@@ -5,7 +5,7 @@ import { newCase } from '../create-case.ts';
 import type { IntakeDependencies, UploadedFile } from './contracts.ts';
 import { intake } from './schema.ts';
 export async function submitCase(
-  { store, queue, templates }: IntakeDependencies,
+  { store, queue, templates, authProfiles }: IntakeDependencies,
   body: unknown,
   files: UploadedFile[],
 ) {
@@ -19,6 +19,18 @@ export async function submitCase(
   }
   if (input.sourceType === 'text' && !input.text?.trim()) throw new Error('EMPTY_INPUT');
   if (input.sourceType === 'file' && !files.length) throw new Error('EMPTY_INPUT');
+  if (input.authProfileId || input.authMode) {
+    const profile = authProfiles?.list().find((p) => p.id === input.authProfileId);
+    if (
+      input.analysisLevel !== 'pro' ||
+      input.sourceType !== 'url' ||
+      !profile ||
+      !input.authMode ||
+      new URL(input.sourceUrl!).origin !== profile.origin ||
+      (input.authMode === 'register' && !profile.registration)
+    )
+      throw Error('AUTH_PROFILE_NOT_ALLOWED');
+  }
   const prepared =
     input.sourceType === 'file'
       ? files.map((file) => ({ ...file, mime: detectMime(file.buffer, file.name) }))
@@ -30,6 +42,9 @@ export async function submitCase(
     useAi: input.analysisLevel ? input.analysisLevel !== 'basic' : input.useAi === 'true',
     analysisLevel: input.analysisLevel,
     templateId: input.templateId,
+    ...(input.authProfileId && input.authMode
+      ? { authenticationRequest: { profileId: input.authProfileId, mode: input.authMode } }
+      : {}),
   });
   if (input.sourceType === 'text')
     await store.addEvidence(c, Buffer.from(input.text!), {
