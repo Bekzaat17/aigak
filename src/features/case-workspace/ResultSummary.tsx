@@ -1,3 +1,4 @@
+import { resultDiagnostic } from './result-diagnostic';
 import { ArrowRight } from 'lucide-react';
 import type { CaseRecord, Lang } from '../../../shared/types';
 import { contentVerdict, primaryMaterials } from '../../case-view';
@@ -6,13 +7,19 @@ export function ResultSummary({
   c,
   lang,
   onReview,
+  onDetails,
 }: {
   c: CaseRecord;
   lang: Lang;
   onReview: () => void;
+  onDetails?: () => void;
 }) {
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
   const verdict = contentVerdict(c);
+  const diagnostic = resultDiagnostic(c, lang);
+  const explanation = diagnostic?.explanation || c.assessment[lang];
+  const attempts = c.collection?.attempts || [];
+  const failedStages = c.inspection?.stages.filter((s) => s.status === 'failed') || [];
   const headlines = {
     confirmed: t('Игорный контент подтверждён', 'Ойын мазмұны расталды'),
     indicators:
@@ -35,32 +42,37 @@ export function ResultSummary({
             ? t('ПРОВЕРЕНО ИНСПЕКТОРОМ', 'ИНСПЕКТОР ТЕКСЕРГЕН')
             : t('ГЛАВНЫЙ ВЫВОД', 'НЕГІЗГІ ҚОРЫТЫНДЫ')}
         </span>
-        <h2>{headlines[verdict]}</h2>
-        {c.assessment[lang].length > 400 ? (
+        <h2>{diagnostic?.title || headlines[verdict]}</h2>
+        {explanation.length > 400 ? (
           <details className="summary-explanation">
             <summary>{t('Развёрнутый вывод анализа', 'Талдаудың толық қорытындысы')}</summary>
-            <p>{c.assessment[lang]}</p>
+            <p>{explanation}</p>
           </details>
         ) : (
-          <p>{c.assessment[lang]}</p>
+          <p>{explanation}</p>
         )}
         <span className="summary-note">
-          {verdict === 'confirmed'
+          {diagnostic
             ? t(
-                'Подтверждено инспектором по сохранённым материалам.',
-                'Сақталған материалдар бойынша инспектор растады.',
+                'Это результат выполнения проверки, а не вывод об отсутствии нарушений.',
+                'Бұл тексерудің орындалу нәтижесі, құқық бұзушылықтардың жоқтығы туралы қорытынды емес.',
               )
-            : verdict === 'indicators'
+            : verdict === 'confirmed'
               ? t(
-                  'Пока не подтверждено. Сверьте находки с источниками ниже.',
-                  'Әзірге расталмаған. Белгілерді төмендегі дереккөздермен салыстырыңыз.',
+                  'Подтверждено инспектором по сохранённым материалам.',
+                  'Сақталған материалдар бойынша инспектор растады.',
                 )
-              : t(
-                  'Вывод относится к полученным материалам. Правовая оценка — в разделе «Закон».',
-                  'Қорытынды алынған материалдарға қатысты. Құқықтық бағалау «Заң» бөлімінде.',
-                )}
+              : verdict === 'indicators'
+                ? t(
+                    'Пока не подтверждено. Сверьте находки с источниками ниже.',
+                    'Әзірге расталмаған. Белгілерді төмендегі дереккөздермен салыстырыңыз.',
+                  )
+                : t(
+                    'Вывод относится к полученным материалам. Правовая оценка — в разделе «Закон».',
+                    'Қорытынды алынған материалдарға қатысты. Құқықтық бағалау «Заң» бөлімінде.',
+                  )}
         </span>
-        {c.likelihood !== null && (
+        {!diagnostic && c.likelihood !== null && (
           <details className="score-detail">
             <summary>
               {t(
@@ -77,29 +89,64 @@ export function ResultSummary({
             </p>
           </details>
         )}
+        {diagnostic && (attempts.length > 0 || failedStages.length > 0) && (
+          <details className="summary-explanation">
+            <summary>{t('Что произошло при проверке', 'Тексеру кезінде не болды')}</summary>
+            <p>
+              {t('Режим: ', 'Режим: ')}
+              {c.analysisLevel === 'pro'
+                ? 'Pro'
+                : c.analysisLevel === 'advanced'
+                  ? t('Расширенный', 'Кеңейтілген')
+                  : t('Базовый', 'Негізгі')}{' '}
+              · {c.useAi ? t('с ИИ', 'AI арқылы') : t('без ИИ', 'AI жоқ')}
+            </p>
+            <ul>
+              {attempts.map((a, i) => (
+                <li key={i}>
+                  {a.method}: {a.errorCode || a.status} · {(a.durationMs / 1000).toFixed(1)}{' '}
+                  {t('с', 'с')}
+                </li>
+              ))}
+            </ul>
+            {failedStages.map((s) => (
+              <p key={s.id}>
+                {s.name[lang]}: {s.summary[lang]}
+              </p>
+            ))}
+          </details>
+        )}
       </div>
       <div className="summary-next">
         <span className="eyebrow">{t('ВАШ СЛЕДУЮЩИЙ ШАГ', 'КЕЛЕСІ ҚАДАМЫҢЫЗ')}</span>
         <strong>
-          {pending
-            ? t(`Осталось проверить: ${pending}`, `Тексеру қалды: ${pending}`)
-            : c.findings.length
-              ? t('Завершите проверку', 'Тексеруді аяқтаңыз')
-              : t('Проверьте полноту материалов', 'Материалдардың толықтығын тексеріңіз')}
+          {diagnostic
+            ? t('Что делать дальше', 'Келесі әрекет')
+            : pending
+              ? t(`Осталось проверить: ${pending}`, `Тексеру қалды: ${pending}`)
+              : c.findings.length
+                ? t('Завершите проверку', 'Тексеруді аяқтаңыз')
+                : t('Проверьте полноту материалов', 'Материалдардың толықтығын тексеріңіз')}
         </strong>
         <p>
-          {pending
-            ? t(
-                'Откройте находку, сравните с источником и отметьте своё решение.',
-                'Белгіні ашып, дереккөзбен салыстырыңыз және шешіміңізді белгілеңіз.',
-              )
-            : t(
-                'Проверьте контекст и укажите, достаточно ли полученных данных.',
-                'Мәнмәтінді тексеріп, алынған деректердің жеткіліктілігін көрсетіңіз.',
-              )}
+          {diagnostic
+            ? diagnostic.next
+            : pending
+              ? t(
+                  'Откройте находку, сравните с источником и отметьте своё решение.',
+                  'Белгіні ашып, дереккөзбен салыстырыңыз және шешіміңізді белгілеңіз.',
+                )
+              : t(
+                  'Проверьте контекст и укажите, достаточно ли полученных данных.',
+                  'Мәнмәтінді тексеріп, алынған деректердің жеткіліктілігін көрсетіңіз.',
+                )}
         </p>
-        <button className="secondary" onClick={onReview}>
-          {pending ? t('К находкам', 'Белгілерге өту') : t('К проверке', 'Тексеруге өту')}
+        <button className="secondary" onClick={diagnostic ? onDetails || onReview : onReview}>
+          {diagnostic
+            ? t('Причины и попытки', 'Себептер мен әрекеттер')
+            : pending
+              ? t('К находкам', 'Белгілерге өту')
+              : t('К проверке', 'Тексеруге өту')}
           <ArrowRight size={16} />
         </button>
       </div>
@@ -117,11 +164,13 @@ export function ResultSummary({
           <strong>{primaryMaterials(c).length}</strong>
         </span>
         <span className={partial ? 'coverage-warning' : ''}>
-          {!c.inspection
-            ? t('Ход этапов не сохранён', 'Кезеңдер барысы сақталмаған')
-            : partial
-              ? t('Есть ограничения сбора', 'Жинауда шектеулер бар')
-              : t('Этапы анализа завершены', 'Талдау кезеңдері аяқталды')}
+          {diagnostic && attempts.length
+            ? t(`Попыток доступа: ${attempts.length}`, `Қол жеткізу әрекеттері: ${attempts.length}`)
+            : !c.inspection
+              ? t('Анализ содержимого не выполнен', 'Мазмұн талданбады')
+              : partial
+                ? t('Есть ограничения сбора', 'Жинауда шектеулер бар')
+                : t('Этапы анализа завершены', 'Талдау кезеңдері аяқталды')}
         </span>
       </div>
     </section>

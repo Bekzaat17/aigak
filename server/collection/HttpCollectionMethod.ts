@@ -64,6 +64,7 @@ export class HttpCollectionMethod implements UrlCollectionMethod {
         `Сервер HTTP ${result.status} қайтарды; мазмұн қате беті болуы мүмкін.`,
       );
     await extraction.extract(c, original);
+    if (result.status >= 400) throw Error('HTTP_ERROR');
     if (mime !== 'text/html') return;
     const $ = load(result.body.toString());
     c.links = [

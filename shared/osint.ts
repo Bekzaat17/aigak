@@ -14,6 +14,12 @@ export interface OsintObservation {
   end?: number;
 }
 export interface OsintStage {
+  pages?: {
+    url: string;
+    depth: number;
+    status: 'started' | 'available' | 'unavailable';
+    evidenceIds: string[];
+  }[];
   id: string;
   version: string;
   status: 'completed' | 'partial' | 'skipped' | 'failed';
@@ -104,8 +110,8 @@ export const osintLabels: Record<string, Localized> = {
   social: { ru: 'Публичный канал', kk: 'Ашық арна' },
   registrar: { ru: 'Регистратор', kk: 'Тіркеуші' },
   registrant_organization: {
-    ru: 'Организация-регистрант по RDAP',
-    kk: 'RDAP бойынша тіркелуші ұйым',
+    ru: 'Организация-регистрант по данным реестра',
+    kk: 'Тізілім бойынша тіркелуші ұйым',
   },
   registration: { ru: 'Дата регистрации', kk: 'Тіркелген күні' },
   expiration: { ru: 'Дата истечения', kk: 'Аяқталу күні' },

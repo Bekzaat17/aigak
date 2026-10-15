@@ -26,7 +26,16 @@ export class InspectionStage implements ProcessingStage {
     c.status = 'analyzing';
     c.findings = [];
     c.likelihood = null;
-    delete c.inspection;
+    c.inspection = {
+      level: c.analysisLevel,
+      version: '2.0.0',
+      status: 'partial',
+      startedAt: new Date().toISOString(),
+      completedAt: '',
+      aiCalls: 0,
+      aiAttempts: 0,
+      stages: [],
+    };
     c.assessment = {
       ru: 'Проверка содержимого ещё не завершена.',
       kk: 'Мазмұнды тексеру әлі аяқталмады.',
@@ -39,6 +48,12 @@ export class InspectionStage implements ProcessingStage {
     const result = await this.inspector.inspect(
       { ...c, evidence: currentEvidence(c) },
       async (stage) => {
+        c.inspection!.stages.push(stage);
+        c.inspection!.aiAttempts = c.inspection!.stages.reduce(
+          (n, s) => n + (s.aiAttempts?.length || 0),
+          0,
+        );
+        c.inspection!.aiCalls = c.inspection!.stages.filter((s) => s.aiAttempts?.length).length;
         await this.store.event(
           c,
           'inspection.stage',

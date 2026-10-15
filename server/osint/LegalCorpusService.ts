@@ -7,21 +7,40 @@ export { legalCatalog } from './legal-catalog';
 export type { LegalSource } from './legal-catalog';
 export { parseLegalArticles } from './parse-legal-articles';
 
-/** Ordered, replaceable official readers; a failed format also triggers the next reader. */
+/** Parallel official reads, serialized durable writes; storage errors are never source failures. */
 export class LegalCorpusService {
   constructor(
     private readonly readers: readonly LegalSourceReader[],
     private readonly sources = legalCatalog,
   ) {}
   async enrich(report: OsintReport, save: SaveArtifact, signal = AbortSignal.timeout(28000)) {
+    let writes: Promise<void> = Promise.resolve();
     await Promise.all(
       this.sources.map(async (source) => {
         const started = Date.now();
         for (const reader of this.readers) {
           signal.throwIfAborted();
+          let document: Awaited<ReturnType<LegalSourceReader['read']>>;
+          let norms: ReturnType<typeof parseLegalArticles>;
           try {
-            const document = await reader.read(source, signal);
-            const norms = parseLegalArticles(document.html, source);
+            document = await reader.read(source, signal);
+            norms = parseLegalArticles(document.html, source);
+          } catch (error) {
+            signal.throwIfAborted();
+            report.stages.push({
+              id: `law-attempt-${source.id}-${reader.id}`,
+              version: '2',
+              status: 'failed',
+              durationMs: Date.now() - started,
+              evidenceIds: [],
+              summary: {
+                ru: `${source.title.ru}: ${reader.id} — ${error instanceof Error ? error.message : 'LAW_UNAVAILABLE'}`,
+                kk: `${source.title.kk}: ${reader.id} — LAW_UNAVAILABLE`,
+              },
+            });
+            continue;
+          }
+          const commit = writes.then(async () => {
             signal.throwIfAborted();
             const raw = await save(document.artifact, 'official-corpus@2');
             report.legalNorms ??= [];
@@ -46,21 +65,10 @@ export class LegalCorpusService {
                 kk: `${source.title.kk}: ${source.articles.join(', ')} баптары ресми дереккөзден алынды; құқықтық агент белгілерге қолданылуын тексереді.`,
               },
             });
-            return;
-          } catch (error) {
-            signal.throwIfAborted();
-            report.stages.push({
-              id: `law-attempt-${source.id}-${reader.id}`,
-              version: '2',
-              status: 'failed',
-              durationMs: Date.now() - started,
-              evidenceIds: [],
-              summary: {
-                ru: `${source.title.ru}: ${reader.id} — ${error instanceof Error ? error.message : 'LAW_UNAVAILABLE'}`,
-                kk: `${source.title.kk}: ${reader.id} — LAW_UNAVAILABLE`,
-              },
-            });
-          }
+          });
+          writes = commit;
+          await commit;
+          return;
         }
         report.stages.push({
           id: 'law-' + source.id,

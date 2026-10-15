@@ -1,3 +1,4 @@
+import { SiteCoverage } from '../features/case-workspace/SiteCoverage';
 import { AuthChallengePanel } from '../features/case-workspace/AuthChallengePanel';
 import { CollectionQuality } from '../features/case-workspace/CollectionQuality';
 import { AnalysisProgress } from '../AnalysisProgress';
@@ -52,8 +53,14 @@ export function CaseScreen({
         <AnalysisProgress c={current} lang={lang} />
       ) : (
         <>
-          <ResultSummary c={current} lang={lang} onReview={reviewFindings} />
+          <ResultSummary
+            c={current}
+            lang={lang}
+            onReview={reviewFindings}
+            onDetails={() => openTab('details')}
+          />
           <div id="result-sections" />
+          <SiteCoverage c={current} lang={lang} />
           <CaseTabs current={current} lang={lang} tab={tab} openTab={openTab} />
           {tab === 'analysis' && (
             <FindingsWorkspace

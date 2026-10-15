@@ -1,3 +1,5 @@
+import { SocialProfiles } from './SocialProfiles';
+import { ResourceHistory } from './ResourceHistory';
 import { formatDuration } from '../../lib/format-duration';
 import type { CaseRecord, Lang } from '../../../shared/types';
 import { displayObservations } from '../../../shared/osint-presentation';
@@ -57,6 +59,8 @@ export function OsintPanel({
           />
         );
       })}
+      <SocialProfiles current={current} lang={lang} />
+      <ResourceHistory current={current} lang={lang} />
       <ResourceRelations current={current} lang={lang} onChange={onChange} />
       <details className="technical-details">
         <summary>

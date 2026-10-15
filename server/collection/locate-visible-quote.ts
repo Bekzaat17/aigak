@@ -55,25 +55,46 @@ export async function locateVisibleQuote(page: Page, quote: string) {
       behavior: 'instant',
     });
     const positioned = range.getBoundingClientRect();
-    // Reject obscured text (cookie dialogs, sticky overlays, loading masks).
-    for (const r of Array.from(range.getClientRects())) {
-      if (!r.width || !r.height) continue;
-      if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) return null;
-      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      if (
-        !top ||
-        !chunks.some(
-          (c) =>
-            c.start <= end &&
-            c.start + c.offsets.length > start &&
-            c.node.parentElement?.contains(top),
-        )
-      )
-        return null;
+    // Check each selected text node, including clipped line edges. A visible centre
+    // does not prove that the entire quote survives overflow or a sticky overlay.
+    for (const chunk of chunks.filter(
+      (c) => c.start <= end && c.start + c.offsets.length > start,
+    )) {
+      const selected = document.createRange();
+      selected.setStart(chunk.node, chunk.offsets[Math.max(0, start - chunk.start)]);
+      selected.setEnd(
+        chunk.node,
+        chunk.offsets[Math.min(chunk.offsets.length - 1, end - chunk.start)] + 1,
+      );
+      for (const r of Array.from(selected.getClientRects())) {
+        if (!r.width || !r.height) continue;
+        if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) return null;
+        for (let ancestor = chunk.node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+          const css = getComputedStyle(ancestor);
+          if (css.visibility === 'hidden' || css.display === 'none' || Number(css.opacity) === 0)
+            return null;
+          const box = ancestor.getBoundingClientRect();
+          const left = box.left + ancestor.clientLeft;
+          const top = box.top + ancestor.clientTop;
+          if (
+            (/(hidden|clip|auto|scroll)/.test(css.overflowX) &&
+              (r.left < left - 0.5 || r.right > left + ancestor.clientWidth + 0.5)) ||
+            (/(hidden|clip|auto|scroll)/.test(css.overflowY) &&
+              (r.top < top - 0.5 || r.bottom > top + ancestor.clientHeight + 0.5))
+          )
+            return null;
+        }
+        for (const x of [r.left + 1, r.left + r.width / 2, r.right - 1]) {
+          for (const y of [r.top + 1, r.top + r.height / 2, r.bottom - 1]) {
+            const top = document.elementFromPoint(x, y);
+            if (!top || !chunk.node.parentElement?.contains(top)) return null;
+          }
+        }
+      }
     }
     return {
       x: Math.max(0, positioned.left - 32),
-      y: Math.max(0, positioned.top + scrollY - 48),
+      y: Math.max(0, positioned.top - 48),
       width: Math.min(innerWidth - Math.max(0, positioned.left - 32), positioned.width + 64),
       height: Math.min(
         document.documentElement.scrollHeight - Math.max(0, positioned.top + scrollY - 48),

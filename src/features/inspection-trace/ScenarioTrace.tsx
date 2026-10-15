@@ -22,7 +22,10 @@ export function ScenarioTrace({ run, lang }: { run: ScenarioRun; lang: Lang }) {
           : run.status === 'partial'
             ? t('Частичный результат', 'Ішінара нәтиже')
             : t('Выполняется', 'Орындалуда')}{' '}
-        · {t('Общий бюджет: 400 с', 'Жалпы уақыт: 400 с')}
+        ·{' '}
+        {t('Общий бюджет: ', 'Жалпы уақыт: ') +
+          Math.round((Date.parse(run.deadlineAt) - Date.parse(run.startedAt)) / 1000) +
+          ' с'}
       </p>
       <ol>
         {run.actions.map((a, i) => (

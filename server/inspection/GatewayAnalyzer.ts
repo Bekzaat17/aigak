@@ -1,10 +1,12 @@
 import type { ModelGateway } from '../ai/contracts.ts';
 import { AiError } from '../ai/contracts.ts';
-import { legalOutputSchema, parseLegal } from '../ai/legal-schema.ts';
+import { legalOutputSchema } from '../ai/legal-schema.ts';
+import { verifiedLegalAnalysis } from './verified-legal-analysis';
 import { PROMPT_VERSION, prompts } from '../ai/prompts.ts';
 import { outputSchema, parseAnalysis, SCHEMA_VERSION } from '../ai/schema.ts';
 import type { AiAnalyzer } from './contracts.ts';
 import { compactSources } from './compact-sources.ts';
+import { taskContext } from './task-context';
 
 /** Domain adapter: translates inspection data to a provider-independent gateway request. */
 export class GatewayAnalyzer implements AiAnalyzer {
@@ -20,7 +22,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
     const sources = evidence.filter((e) => e.text?.trim());
     const input = JSON.stringify({
       sources: compactSources(sources),
-      osint: options.osint,
+      osint: taskContext(task, options.osint),
       inspectorStatements: options.inspectorResponses?.length
         ? {
             notice:
@@ -33,7 +35,7 @@ export class GatewayAnalyzer implements AiAnalyzer {
         id: s.id,
         status: s.status,
         summary: s.summary,
-        observations: s.observations,
+        // Candidates already contain merged observations; avoid sending repeated copies.
         review: s.review,
         legalHypotheses: s.legalHypotheses,
       })),
@@ -41,16 +43,16 @@ export class GatewayAnalyzer implements AiAnalyzer {
     // Fail visibly rather than silently inspecting a truncated source.
     if (input.length > 180000) throw new AiError('AI_INPUT_TOO_LARGE');
     if (task === 'legal')
-      return this.gateway.complete(
-        task,
+      return verifiedLegalAnalysis(
+        this.gateway,
         { instructions: prompts.legal, input, schema: legalOutputSchema, schemaName: 'legal_v1' },
-        { promptVersion: 'legal/1.6.0', schemaVersion: 'legal/1.0.0' },
+        options.osint?.legalNorms || [],
+        options.candidates || [],
         options.signal,
         {
           beforeAttempt: options.beforeAttempt || (() => {}),
           onAttempt: options.onAttempt || (() => {}),
         },
-        (text) => parseLegal(text, options.osint?.legalNorms || [], options.candidates || []),
       );
     return this.gateway.complete(
       task,

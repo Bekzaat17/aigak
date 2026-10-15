@@ -147,3 +147,146 @@ test('registry adapter neither requests nor replaces legal corpus', async () => 
   assert.deepEqual(urls, [REGISTRY_URL]);
   assert.equal(r.legalNorms, original);
 });
+
+test('legal answer receives one grounded repair without relaxing exact quote checks', async () => {
+  const { verifiedLegalAnalysis } = await import('../server/inspection/verified-legal-analysis');
+  const { AiError } = await import('../server/ai/contracts');
+  const norms = [
+    { id: 'norm', quote: 'Exact official quote' },
+  ] as import('../shared/osint').LegalNorm[];
+  const findings = [{ id: 'finding' }] as import('../shared/types').Finding[];
+  let calls = 0;
+  const request = { instructions: 'legal', input: '{}', schema: {}, schemaName: 'legal' };
+  const valid = {
+    assessment: { ru: 'Вывод', kk: 'Баға' },
+    hypotheses: [
+      {
+        normId: 'norm',
+        citationId: 'n0p0',
+        findingIds: ['finding'],
+        reason: { ru: 'Причина', kk: 'Себеп' },
+        missing: [{ ru: 'Проверка', kk: 'Тексеру' }],
+      },
+    ],
+  };
+  const gateway: import('../server/ai/contracts').ModelGateway = {
+    available: true,
+    async complete(_task, req, versions, _signal, _observer, validate) {
+      calls++;
+      if (calls === 2) {
+        assert.ok(req.instructions.includes('VALIDATION REPAIR'));
+        assert.equal(versions.promptVersion, 'legal-repair/2.0.0');
+      }
+      return validate(
+        JSON.stringify(
+          calls === 1
+            ? {
+                ...valid,
+                hypotheses: [{ ...valid.hypotheses[0], citationId: 'not-a-supplied-citation' }],
+              }
+            : valid,
+        ),
+      );
+    },
+  };
+  const result = await verifiedLegalAnalysis(
+    gateway,
+    request,
+    norms,
+    findings,
+    new AbortController().signal,
+    { beforeAttempt() {}, onAttempt() {} },
+  );
+  assert.equal(calls, 2);
+  assert.equal(result.legalHypotheses[0].normQuote, norms[0].quote);
+  calls = 0;
+  const refusal: import('../server/ai/contracts').ModelGateway = {
+    available: true,
+    async complete() {
+      calls++;
+      throw new AiError('AI_REFUSAL');
+    },
+  };
+  await assert.rejects(
+    verifiedLegalAnalysis(refusal, request, norms, findings, new AbortController().signal, {
+      beforeAttempt() {},
+      onAttempt() {},
+    }),
+    /AI_REFUSAL/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('legal citations preserve exact source spans and cannot resolve an ID under a different norm', async () => {
+  const { legalCitations, resolveLegalCitations } = await import('../server/ai/legal-citations');
+  const norms = [
+    { id: 'law', quote: 'Full legal clause with exceptions. '.repeat(40) },
+  ] as import('../shared/osint').LegalNorm[];
+  const citations = legalCitations(norms);
+  assert.ok(citations.length > 1);
+  assert.ok(citations.every((c) => c.text.length <= 600 && norms[0].quote.includes(c.text)));
+  assert.equal(
+    citations
+      .map((c) => c.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+    norms[0].quote.replace(/\s+/g, ' ').trim(),
+  );
+  const resolved = JSON.parse(
+    resolveLegalCitations(
+      JSON.stringify({
+        assessment: { ru: 'a', kk: 'b' },
+        hypotheses: [{ normId: 'law', citationId: citations[0].id }],
+      }),
+      citations,
+    ),
+  );
+  assert.equal(resolved.hypotheses[0].normQuote, citations[0].text);
+  assert.throws(
+    () =>
+      resolveLegalCitations(
+        JSON.stringify({ hypotheses: [{ normId: 'other', citationId: citations[0].id }] }),
+        citations,
+      ),
+    /AI_UNGROUNDED/,
+  );
+});
+
+test('official reads may overlap but evidence writes serialize; storage failure is not a reader failure', async () => {
+  const sources = [source, { ...source, id: 'SECOND' }];
+  let active = 0,
+    peak = 0;
+  const reader: LegalSourceReader = {
+    id: 'official',
+    async read() {
+      return {
+        html,
+        artifact: {
+          name: 'law.html',
+          mime: 'text/html',
+          bytes: Buffer.from(html),
+          sourceUrl: source.url,
+        },
+      };
+    },
+  };
+  const r = report();
+  await new LegalCorpusService([reader], sources).enrich(r, async () => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    active--;
+    return { id: 'law-' + r.stages.length, createdAt: '2026-10-15' } as Evidence;
+  });
+  assert.equal(peak, 1);
+  assert.equal(r.legalNorms!.length, 2);
+  const failed = report();
+  await assert.rejects(
+    new LegalCorpusService([reader], sources).enrich(failed, async () => {
+      throw Error('CASE_CONFLICT');
+    }),
+    /CASE_CONFLICT/,
+  );
+  assert.ok(!failed.stages.some((s) => s.id.startsWith('law-attempt-')));
+});

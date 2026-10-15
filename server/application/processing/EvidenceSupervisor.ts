@@ -20,7 +20,7 @@ export class EvidenceSupervisor {
       const start = Date.now();
       await strategy.verify(
         record,
-        AbortSignal.any([AbortSignal.timeout(20000), ...(signal ? [signal] : [])]),
+        AbortSignal.any([AbortSignal.timeout(110000), ...(signal ? [signal] : [])]),
       );
       const missing = record.findings.filter(
         (f) => !verifiedFindingScreenshot(f, record.evidence),

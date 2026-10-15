@@ -1,6 +1,7 @@
 import type { CaseRecord } from '../../../shared/types';
 import type { ArtifactReviewer, CollectionWave, CollectedArtifacts } from '../ports/collection';
-import type { CaseStore, EvidenceInput } from '../ports/storage';
+import type { CaseStore } from '../ports/storage';
+import { commitCollectedArtifacts } from './commit-collected-artifacts';
 
 /** Runs isolated strategies in bounded waves; only this orchestrator commits their artifacts. */
 export class CollectionOrchestrator {
@@ -45,33 +46,13 @@ export class CollectionOrchestrator {
           result.artifacts.map((a) => a.evidence),
           result.errorCode,
         );
-        const ids = new Map<string, string>();
-        for (const { evidence: e, bytes } of result.artifacts) {
-          const input: EvidenceInput = {
-            name: e.name,
-            mime: e.mime,
-            kind: e.kind,
-            method: e.method,
-            text: e.text,
-            sourceUrl: e.sourceUrl,
-            access: e.access,
-            parentId: e.parentId ? ids.get(e.parentId) : undefined,
-            capture: e.capture
-              ? {
-                  ...e.capture,
-                  textEvidenceId: ids.get(e.capture.textEvidenceId) || e.capture.textEvidenceId,
-                }
-              : undefined,
-          };
-          const saved = await this.store.addEvidence(record, bytes, input);
-          ids.set(e.id, saved.id);
-        }
+        const ids = await commitCollectedArtifacts(this.store, record, result.artifacts);
         record.collection.attempts.push({
           method: id,
           startedAt: new Date(start).toISOString(),
           durationMs,
           ...reviewed,
-          evidenceIds: [...ids.values()],
+          evidenceIds: ids,
           ...(result.errorCode ? { errorCode: result.errorCode } : {}),
         });
         record.links = [...new Set([...record.links, ...result.links])].slice(0, 150);
@@ -89,7 +70,7 @@ export class CollectionOrchestrator {
           durationMs,
         });
         if (reviewed.status === 'adequate') record.collection.status = 'adequate';
-        else if (ids.size && record.collection.status === 'unavailable')
+        else if (ids.length && record.collection.status === 'unavailable')
           record.collection.status = 'limited';
         await this.store.save(record);
       }

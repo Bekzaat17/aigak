@@ -24,7 +24,11 @@ export function CaseHeader({ current, lang, busy, processing, reset, exportZip }
       </div>
       <div className="result-heading">
         <div>
-          <div className="eyebrow">{t('РЕЗУЛЬТАТ ПРОВЕРКИ', 'ТЕКСЕРУ НӘТИЖЕСІ')}</div>
+          <div className="eyebrow">
+            {processing
+              ? t('ПРОВЕРКА ВЫПОЛНЯЕТСЯ', 'ТЕКСЕРУ ОРЫНДАЛУДА')
+              : t('РЕЗУЛЬТАТ ПРОВЕРКИ', 'ТЕКСЕРУ НӘТИЖЕСІ')}
+          </div>
           <h1>{current.title}</h1>
           <p>
             {date(current.createdAt, lang)} · {t('Время Алматы', 'Алматы уақыты')}{' '}

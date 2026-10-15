@@ -13,7 +13,11 @@ export class OsintFacade {
     if (new Set(collectors.map((c) => c.id)).size !== collectors.length)
       throw new Error('DUPLICATE_OSINT_COLLECTOR');
   }
-  async inspect(input: OsintInput, save: SaveArtifact): Promise<OsintReport> {
+  async inspect(
+    input: OsintInput,
+    save: SaveArtifact,
+    externalSignal?: AbortSignal,
+  ): Promise<OsintReport> {
     const observations = extractContacts(input.evidence);
     const report: OsintReport = {
       version: '1.0.0',
@@ -58,6 +62,9 @@ export class OsintFacade {
       siteDomain: target.siteDomain,
     });
     const controller = new AbortController();
+    const signal = externalSignal
+      ? AbortSignal.any([controller.signal, externalSignal])
+      : controller.signal;
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       // No store mutations in parallel: gather provider outputs, then persist in registry order.
@@ -67,19 +74,20 @@ export class OsintFacade {
           let abort = () => {};
           try {
             const result = await Promise.race([
-              collector.collect(target, controller.signal),
+              collector.collect(target, signal),
               new Promise<never>((_, reject) => {
                 abort = () => reject(new Error('OSINT_TIMEOUT'));
-                controller.signal.addEventListener('abort', abort, { once: true });
-                if (controller.signal.aborted) abort();
+                signal.addEventListener('abort', abort, { once: true });
+                if (signal.aborted) abort();
               }),
             ]);
             return { result, durationMs: Date.now() - start };
           } finally {
-            controller.signal.removeEventListener('abort', abort);
+            signal.removeEventListener('abort', abort);
           }
         }),
       );
+      externalSignal?.throwIfAborted();
       for (let i = 0; i < results.length; i++) {
         const collector = this.collectors[i],
           outcome = results[i];

@@ -34,6 +34,7 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
         onAction: (a: import('../../shared/agent-run').AgentAction) => void,
       ): Promise<AuthProfile>;
     },
+    private readonly sessionLifetimeMs = 900000,
   ) {}
   supports(c: CaseRecord) {
     return !!c.authenticationRequest;
@@ -64,7 +65,10 @@ export class AuthenticatedCollectionMethod implements UrlCollectionMethod {
       report.status = 'action_required';
       return;
     }
-    const session = await this.open(AbortSignal.timeout(400000), { width: 1440, height: 1000 });
+    const session = await this.open(AbortSignal.timeout(this.sessionLifetimeMs), {
+      width: 1440,
+      height: 1000,
+    });
     const abort = () => {
       void session.close();
     };

@@ -1,4 +1,5 @@
 import { AuthenticationSummary } from './AuthenticationSummary';
+import { LegalCoverage } from './LegalCoverage';
 import { LicenseSummary } from './LicenseSummary';
 import { AccessObservations } from './AccessObservations';
 import { LegalSourceLink } from './LegalSourceLink';
@@ -15,7 +16,10 @@ export function LawWorkspace({
   onFinding: () => void;
 }) {
   const t = (ru: string, kk: string) => (lang === 'ru' ? ru : kk);
-  const hypotheses = c.inspection?.stages.flatMap((s) => s.legalHypotheses || []) || [];
+  const hypotheses =
+    c.inspection?.stages
+      .filter((s) => s.id === 'legal' && s.status === 'completed')
+      .flatMap((s) => s.legalHypotheses || []) || [];
   const legalStage = c.inspection?.stages.find((s) => s.id === 'legal');
   return (
     <section className="law-workspace">
@@ -32,6 +36,7 @@ export function LawWorkspace({
         <ShieldCheck size={24} />
       </div>
       <LicenseSummary c={c} lang={lang} />
+      <LegalCoverage c={c} lang={lang} />
       <section className="panel">
         <h3>{t('Правонарушения', 'Құқық бұзушылықтар')}</h3>
         {!hypotheses.length && (

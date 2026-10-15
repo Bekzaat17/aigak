@@ -8,3 +8,6 @@ tmp/
 test-results/
 *.log
 .DS_Store
+
+# Generated case exports contain source materials; persist locally, outside Git.
+output/reports/

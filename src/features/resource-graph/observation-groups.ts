@@ -14,7 +14,6 @@ export function observationGroups(lang: Lang) {
       kinds: [
         'email',
         'phone',
-        'social',
         'organization',
         'address',
         'business_id',

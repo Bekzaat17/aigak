@@ -5,7 +5,9 @@ import type { Evidence } from '../../shared/types';
 export function reviewCollectionAttempt(evidence: readonly Evidence[], errorCode?: string) {
   const texts = evidence.filter((e) => e.kind === 'text' && e.text).map((e) => e.text!);
   const adequate =
-    errorCode !== 'CAPTCHA_REQUIRED' && texts.some((text) => pageTextQuality(text) === 'adequate');
+    errorCode !== 'CAPTCHA_REQUIRED' &&
+    errorCode !== 'HTTP_ERROR' &&
+    texts.some((text) => pageTextQuality(text) === 'adequate');
   const status: 'adequate' | 'limited' | 'failed' = adequate
     ? 'adequate'
     : errorCode

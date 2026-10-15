@@ -1,3 +1,17 @@
+import { SitemapCollector } from '../osint/collectors/SitemapCollector';
+import { processingPolicy } from './processing-policy';
+import { SiteExplorationStage } from '../application/processing/SiteExplorationStage';
+import { LegalFollowUpStage } from '../application/processing/LegalFollowUpStage';
+import { PublishedPagePlanner } from '../osint/PublishedPagePlanner';
+import { IsolatedCollectionStrategy } from '../collection/IsolatedCollectionStrategy';
+import { HttpCollectionMethod } from '../collection/HttpCollectionMethod';
+import { BrowserCollectionMethod } from '../collection/BrowserCollectionMethod';
+import { reviewCollectionAttempt } from '../domain/review-collection-attempt';
+import { DeepResourceStage } from '../application/processing/DeepResourceStage';
+import { OsintFacade } from '../osint/OsintFacade';
+import { KaznicWhoisCollector } from '../osint/collectors/KaznicWhoisCollector';
+import { ArchiveHistoryCollector } from '../osint/collectors/ArchiveHistoryCollector';
+import { CertificateHistoryCollector } from '../osint/collectors/CertificateHistoryCollector';
 import { AdiletApiReader } from '../osint/AdiletApiReader';
 import { AdiletHtmlReader } from '../osint/AdiletHtmlReader';
 import { LegalCorpusStage } from '../application/processing/LegalCorpusStage';
@@ -45,6 +59,7 @@ export function createCaseProcessor(
   ai?: AiAnalyzer,
   progress?: ProcessingProgress,
 ) {
+  const limits = processingPolicy(process.env);
   const store = new ScopedCaseStore(durableStore);
   const extraction = createExtraction(store, dataDirectory);
   const agentBrowser = process.env.OPENAI_API_KEY
@@ -79,8 +94,30 @@ export function createCaseProcessor(
     sessions,
     new FileAuthChallenges(dataDirectory),
     agentBrowser ? new AutomaticRegistrationProfile(mailbox) : undefined,
+    limits.budgetMs,
   );
   const collector = createUrlCollector(store, extraction);
+  const inspector = createInspectionFacade(ai);
+  const pageStrategies = [
+    new IsolatedCollectionStrategy(
+      'http',
+      10000,
+      (memory) => new HttpCollectionMethod(memory, createExtraction(memory, dataDirectory)),
+    ),
+    new IsolatedCollectionStrategy(
+      'browser',
+      16000,
+      (memory) =>
+        new BrowserCollectionMethod(
+          'subpage',
+          memory,
+          createExtraction(memory, dataDirectory),
+          { width: 1440, height: 1000 },
+          false,
+          openPatchrightSession,
+        ),
+    ),
+  ];
   const processor = new CaseProcessingService(
     store,
     [
@@ -95,6 +132,25 @@ export function createCaseProcessor(
         (c) => collectContactPages(store, c, extraction),
         createOsintFacade(),
       ),
+      new DeepResourceStage(
+        store,
+        new OsintFacade(
+          [
+            new SitemapCollector(),
+            new KaznicWhoisCollector(),
+            new ArchiveHistoryCollector(),
+            new CertificateHistoryCollector(),
+          ],
+          30000,
+        ),
+      ),
+      new SiteExplorationStage(
+        store,
+        new PublishedPagePlanner(store, 'site'),
+        pageStrategies,
+        reviewCollectionAttempt,
+        limits,
+      ),
       new LegalCorpusStage(
         store,
         new LegalCorpusService([new AdiletApiReader(), new AdiletHtmlReader()]),
@@ -105,7 +161,14 @@ export function createCaseProcessor(
         new DetectiveService(),
         new ResourceInvestigator([new CertificateTransparencyProvider()]),
       ),
-      new InspectionStage(store, createInspectionFacade(ai)),
+      new InspectionStage(store, inspector),
+      new LegalFollowUpStage(
+        store,
+        new PublishedPagePlanner(store, 'legal'),
+        pageStrategies,
+        reviewCollectionAttempt,
+        inspector,
+      ),
       new FindingVerificationStage(
         store,
         new EvidenceSupervisor([
@@ -169,16 +232,19 @@ export function createCaseProcessor(
       await mailbox.release('automatic-' + id);
     },
     {
-      budgetMs: 400000,
+      budgetMs: limits.budgetMs,
       scope: store,
       stageBudgets: {
-        'collection-v2': 130000,
-        'authentication-v1': 60000,
-        'resource-profile-v1': 15000,
+        'collection-v2': 110000,
+        'authentication-v1': 45000,
+        'resource-profile-v1': 20000,
+        'deep-resource-v1': 35000,
+        'site-exploration-v1': Math.min(360000, Math.floor(limits.budgetMs * 0.4)),
+        'legal-follow-up-v1': 180000,
         'legal-corpus-v1': 30000,
         'pro-enrichment-v1': 20000,
-        'inspection-v1': 90000,
-        'finding-verification-v1': 50000,
+        'inspection-v1': 150000,
+        'finding-verification-v1': 240000,
       },
     },
   );

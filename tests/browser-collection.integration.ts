@@ -217,3 +217,42 @@ test('public-page POST rules restrict endpoint, content type, body size and requ
     await browser.close();
   }
 });
+
+test('quote visibility rejects partially clipped lines and partially covered text', async () => {
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+    await page.setContent(
+      '<div style="height:27px;overflow:hidden"><p style="margin:0;font:30px/30px Arial">Tickets from 10 tenge</p></div>',
+    );
+    assert.equal(await locateVisibleQuote(page, 'Tickets from 10 tenge'), null);
+    await page.setContent(
+      '<p style="margin:0;font:30px/30px Arial">Tickets from 10 tenge</p><div style="position:fixed;top:32px;left:0;width:100%;height:10px;background:white"></div>',
+    );
+    assert.equal(await locateVisibleQuote(page, 'Tickets from 10 tenge'), null);
+    await page.setContent('<p style="margin:0;font:30px/36px Arial">Tickets from 10 tenge</p>');
+    assert.ok(await locateVisibleQuote(page, 'Tickets from 10 tenge'));
+  } finally {
+    await browser.close();
+  }
+});
+
+test('quote crop below the fold uses viewport coordinates and preserves the scroll offset', async () => {
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome' });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+    await page.setContent(
+      '<div style="height:1800px"></div><p>Exact below-fold quote</p><div style="height:1000px"></div>',
+    );
+    const bounds = await locateVisibleQuote(page, 'Exact below-fold quote');
+    assert.ok(bounds);
+    assert.ok(bounds.scrollY > 800);
+    assert.ok(bounds.y >= 0 && bounds.y < 800);
+    const image = await page.screenshot({
+      clip: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+    });
+    assert.ok(image.length > 100);
+  } finally {
+    await browser.close();
+  }
+});

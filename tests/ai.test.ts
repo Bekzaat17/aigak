@@ -479,7 +479,7 @@ test('pro legal request uses a separate schema and configured route without inve
           hypotheses: [
             {
               normId: 'norm1',
-              normQuote: 'норма закона',
+              citationId: 'n0p0',
               findingIds: [findings[0].id],
               reason: bi,
               missing: [bi],

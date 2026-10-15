@@ -1,4 +1,5 @@
 import type { CaseRecord, Localized } from './types.ts';
+import { verifiedFindingScreenshot } from './finding-screenshot';
 export interface DossierTask {
   id: string;
   title: Localized;
@@ -54,6 +55,26 @@ export function buildDossier(
     c.inspection?.stages.some((s) => s.id === id && s.status === 'completed'),
   );
   const tasks: DossierTask[] = [
+    {
+      id: 'visual-proof',
+      title: { ru: 'Доказательства каждой находки', kk: 'Әр белгінің дәлелдері' },
+      status:
+        accepted.length &&
+        accepted.every((f) => {
+          const source = c.evidence.find((e) => e.id === f.evidenceId);
+          return (
+            source?.text?.slice(f.start, f.end) === f.quote &&
+            !!source.sourceUrl &&
+            !!verifiedFindingScreenshot(f, c.evidence)
+          );
+        })
+          ? 'done'
+          : 'missing',
+      detail: {
+        ru: 'Каждая принятая находка должна иметь точную цитату, URL и проверенный снимок этого фрагмента. Подтверждение инспектором не заменяет отсутствующие материалы.',
+        kk: 'Әр қабылданған белгіде нақты дәйексөз, URL және сол үзіндінің тексерілген суреті болуы тиіс. Инспектордың растауы жоқ материалды алмастырмайды.',
+      },
+    },
     {
       id: 'source',
       title: { ru: 'Ресурс и первичные материалы', kk: 'Ресурс және бастапқы материалдар' },

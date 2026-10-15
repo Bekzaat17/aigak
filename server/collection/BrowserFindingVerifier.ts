@@ -27,7 +27,7 @@ export class BrowserFindingVerifier {
   async verify(record: CaseRecord, parent?: AbortSignal) {
     if (record.sourceType !== 'url' || !record.findings.length) return;
     let session: BrowserSession;
-    const signal = AbortSignal.any([AbortSignal.timeout(120000), ...(parent ? [parent] : [])]);
+    const signal = AbortSignal.any([AbortSignal.timeout(220000), ...(parent ? [parent] : [])]);
     try {
       session = await this.open(record, signal, { width: 1440, height: 1000 });
     } catch {
@@ -43,7 +43,7 @@ export class BrowserFindingVerifier {
             .filter((u): u is string => !!u),
         ),
       ];
-      for (const url of urls.slice(0, 4)) {
+      for (const url of urls) {
         const findings = record.findings.filter(
           (f) => record.evidence.find((e) => e.id === f.evidenceId)?.sourceUrl === url,
         );
@@ -53,6 +53,7 @@ export class BrowserFindingVerifier {
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await session.preparePage?.(page, (action) => record.scenarioRun?.actions.push(action));
           await waitForPageContent(page);
+          if (new URL(page.url()).origin !== new URL(url).origin) throw Error('SOURCE_REDIRECTED');
           for (const finding of findings) {
             if (finding.visualEvidence?.status === 'verified') continue;
             signal.throwIfAborted();
@@ -78,6 +79,8 @@ export class BrowserFindingVerifier {
             const after = await locateVisibleQuote(page, finding.quote);
             if (
               !after ||
+              Math.abs(bounds.x - after.x) > 2 ||
+              Math.abs(bounds.width - after.width) > 2 ||
               Math.abs(bounds.y - after.y) > 2 ||
               Math.abs(bounds.height - after.height) > 2
             ) {

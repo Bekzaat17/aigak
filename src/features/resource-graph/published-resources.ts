@@ -4,7 +4,7 @@ export interface PublishedResource {
   url: string;
   sourceUrl?: string;
   evidenceId?: string;
-  basis: 'published' | 'shared_contact' | 'shared_business_id';
+  basis: 'published' | 'shared_contact' | 'shared_business_id' | 'similar_content';
   detail?: string;
 }
 /** Published links are evidence of a link, never proof of common ownership. */
@@ -33,7 +33,9 @@ export function publishedResources(c: CaseRecord): PublishedResource[] {
   for (const url of c.links) add(url, { sourceUrl: c.sourceUrl, basis: 'published' });
   for (const r of c.osint?.relations || [])
     if (
-      (r.kind === 'shared_contact' || r.kind === 'shared_business_id') &&
+      (r.kind === 'shared_contact' ||
+        r.kind === 'shared_business_id' ||
+        r.kind === 'similar_content') &&
       r.decision !== 'rejected'
     )
       add('https://' + r.to, {
